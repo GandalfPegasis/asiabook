@@ -1,0 +1,52 @@
+CREATE TABLE profile(
+    id int primary key auto_increment,
+    name text not null,
+    email text not null,
+    password text not null,
+    birth_date date,
+    nationality VARCHAR(100),
+    role ENUM("student", "teacher"),
+    department varchar(100),
+    language text,
+    contact_info text
+);
+
+CREATE TABLE friends(
+    id int primary key auto_increment,
+    profile_id_1 int,
+    profile_id_2 int,
+    FOREIGN KEY (profile_id_1) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade,
+    FOREIGN KEY (profile_id_2) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
+);
+
+CREATE TABLE friend_request(
+    id int primary key auto_increment,
+    requested_by int,
+    requested_to int,
+    FOREIGN KEY (requested_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade,
+    FOREIGN KEY (requested_to) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
+);
+
+CREATE TABLE posts(
+    id int primary key auto_increment,
+    posted_by int,
+    caption text,
+    FOREIGN KEY (posted_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
+);
+
+CREATE TABLE post_picture(
+    id int primary key auto_increment,
+    post_id int,
+    location text,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON UPDATE cascade ON DELETE cascade
+);
+
+INSERT INTO profile(name, email, password, birth_date, nationality, role, department, language, contact_info)
+VALUES('julian', 'julian@email.com', 'password', '2005-01-01', 'indonesia', 'student', 'computer science', 'indonesia tercinta', '0919123456789');
+
+INSERT INTO posts(posted_by, caption) VALUES(1, 'this is my dick and balls');
+INSERT INTO posts(posted_by, caption) VALUES(1, 'post number 2');
+INSERT INTO posts(posted_by, caption) VALUES(1, 'post number 3');
+INSERT INTO post_picture(post_id, location) VALUES(1, 'very nice.jpg');
+
+INSERT INTO friend_request(requested_by, requested_to) VALUES(2, 1);
