@@ -41,6 +41,45 @@ CREATE TABLE post_picture(
     FOREIGN KEY (post_id) REFERENCES posts(id) ON UPDATE cascade ON DELETE cascade
 );
 
+CREATE TABLE forum(
+    id int primary key auto_increment,
+    title varchar(100),
+    post_by int,
+    description text,
+    FOREIGN KEY (post_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
+);
+
+
+reply of get the forum_reply of the reply
+CREATE TABLE forum_reply(
+    id int primary key auto_increment,
+    forum_id int,
+    post_by int,
+    reply_of int,
+    content text,
+    FOREIGN KEY (forum_id) REFERENCES forum(id) ON UPDATE cascade ON DELETE cascade,
+    FOREIGN KEY (post_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
+);
+
+INSERT INTO forum_reply(forum_id, post_by, reply_of, content) VALUES (1, 2, null, 'i usually go to the back of the school to meet my regular femboy called joel');
+INSERT INTO forum_reply(forum_id, post_by, reply_of, content) VALUES (1, 1, 1, 'ok got it can i have his phone number');
+INSERT INTO forum_reply(forum_id, post_by, reply_of, content) VALUES (1, 2, 2, 'his phone number 12344444');
+
+CREATE TABLE clubs(
+    id int primary key auto_increment,
+    title text,
+    description text
+);
+
+CREATE TABLE club_members(
+    id int primary key auto_increment,
+    profile_id int,
+    role ENUM('admin', 'member'),
+    club_id int,
+    FOREIGN KEY (profile_id) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade,
+    FOREIGN KEY (club_id) REFERENCES clubs(id) ON UPDATE cascade ON DELETE cascade
+);
+
 INSERT INTO profile(name, email, password, birth_date, nationality, role, department, language, contact_info)
 VALUES('julian', 'julian@email.com', 'password', '2005-01-01', 'indonesia', 'student', 'computer science', 'indonesia tercinta', '0919123456789');
 
@@ -50,3 +89,5 @@ INSERT INTO posts(posted_by, caption) VALUES(1, 'post number 3');
 INSERT INTO post_picture(post_id, location) VALUES(1, 'very nice.jpg');
 
 INSERT INTO friend_request(requested_by, requested_to) VALUES(2, 1);
+
+INSERT INTO forum(title, post_by, description) VALUES('where do i find femboy near the school', 1, 'i would like to meet 1 femboy that is interested in cooking mama');
