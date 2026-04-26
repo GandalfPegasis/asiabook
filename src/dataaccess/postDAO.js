@@ -3,7 +3,7 @@ const db = require("../database");
 const getPostByProfileId = async (profileId) => {
     try {
         const postResults = await db.query(
-            `SELECT post_picture.location, posts.caption
+            `SELECT posts.id as post_id, post_picture.location, posts.caption
             FROM posts
             LEFT JOIN post_picture ON post_picture.post_id = posts.id
             WHERE posts.posted_by = ?;`,
