@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { apiClient } from '@/api/api'
+import { onMounted, ref } from 'vue'
 
 // --- Interfaces ---
 interface Friend {
@@ -11,72 +12,66 @@ interface Friend {
 }
 
 interface FriendRequest {
-  id: number
-  name: string
-  username: string
-  avatar: string
-  mutualFriends: number
+  request_id: number
+  sender_name: string
+  // avatar: string
+  // mutualFriends: number
 }
 
-// --- Mock Data ---
-const friendRequests = ref<FriendRequest[]>([
-  {
-    id: 101,
-    name: 'Emma Wilson',
-    username: '@emma_w',
-    avatar: 'https://i.pravatar.cc/150?img=9',
-    mutualFriends: 12
-  },
-  {
-    id: 102,
-    name: 'James Taylor',
-    username: '@jtaylor',
-    avatar: 'https://i.pravatar.cc/150?img=12',
-    mutualFriends: 3
-  }
-])
+const friendRequests = ref<FriendRequest[]>([]);
+const isLoadingFriendRequest = ref(true);
+const friendRequestError = ref<string | null>(null);
 
-const friends = ref<Friend[]>([
-  {
-    id: 1,
-    name: 'Alice Johnson',
-    username: '@alicej',
-    status: 'online',
-    avatar: 'https://i.pravatar.cc/150?img=1'
-  },
-  {
-    id: 2,
-    name: 'Michael Chen',
-    username: '@mike_c',
-    status: 'offline',
-    avatar: 'https://i.pravatar.cc/150?img=11'
-  },
-  {
-    id: 3,
-    name: 'Sarah Williams',
-    username: '@sarahw',
-    status: 'away',
-    avatar: 'https://i.pravatar.cc/150?img=5'
-  },
-  {
-    id: 4,
-    name: 'David Smith',
-    username: '@dsmith99',
-    status: 'online',
-    avatar: 'https://i.pravatar.cc/150?img=8'
+const friends = ref<Friend[]>([]);
+const isLoadingFriends = ref(true);
+const friendsError = ref<string | null>(null);
+
+  
+const fetchFriends = async () => {
+  isLoadingFriends.value = true;
+  friendsError.value = null;
+  try {
+    const response = await apiClient.get<Friend[]>('/friends');
+    friends.value = response.data;
+    console.log(response.data);
+  } catch (err) {
+    console.error(err);
+    friendsError.value = 'Failed to load friends list.';
+  } finally {
+    isLoadingFriends.value = false;
   }
-])
+};
+
+const fetchFriendRequest = async () => {
+  isLoadingFriendRequest.value = true;
+  friendRequestError.value = null;
+  try {
+    const response = await apiClient.get<FriendRequest[]>('/friends/request');
+    friendRequests.value = response.data;
+    console.log(response.data);
+  } catch (err) {
+    console.error(err);
+    friendRequestError.value = 'Failed to load friends list.';
+  } finally {
+    isLoadingFriendRequest.value = false;
+  }
+};
 
 // --- Mock Actions ---
 const acceptRequest = (id: number) => {
   // In a real app, you would make an API call here.
   // For now, we just remove it from the UI.
-  friendRequests.value = friendRequests.value.filter(req => req.id !== id)
+  friendRequests.value = friendRequests.value.filter(req => req.request_id !== id)
 }
 
 const declineRequest = (id: number) => {
-  friendRequests.value = friendRequests.value.filter(req => req.id !== id)
+  friendRequests.value = friendRequests.value.filter(req => req.request_id !== id)
 }
+
+onMounted(() => {
+  fetchFriends();
+  fetchFriendRequest();
+});
 </script>
 
 <template>
@@ -89,17 +84,17 @@ const declineRequest = (id: number) => {
       </header>
 
       <div class="requests-list">
-        <div v-for="request in friendRequests" :key="request.id" class="request-card">
-          <img :src="request.avatar" :alt="request.name" class="request-avatar" />
+        <div v-for="request in friendRequests" :key="request.request_id" class="request-card">
+          <!-- <img :src="request.avatar" :alt="request.name" class="request-avatar" /> -->
           
           <div class="request-info">
-            <h3 class="name">{{ request.name }}</h3>
-            <span class="meta-text">{{ request.mutualFriends }} mutual friends</span>
+            <h3 class="name">{{ request.sender_name }}</h3>
+            <!-- <span class="meta-text">{{ request.mutualFriends }} mutual friends</span> -->
           </div>
 
           <div class="request-actions">
-            <button @click="acceptRequest(request.id)" class="btn primary">Accept</button>
-            <button @click="declineRequest(request.id)" class="btn danger">Decline</button>
+            <button @click="acceptRequest(request.request_id)" class="btn primary">Accept</button>
+            <button @click="declineRequest(request.request_id)" class="btn danger">Decline</button>
           </div>
         </div>
       </div>

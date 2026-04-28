@@ -22,6 +22,16 @@ import { Icon } from '@iconify/vue';
           <Icon icon="mdi:account-group" class="nav-icon" /> 
           <span>Friends</span>
         </RouterLink>
+
+        <RouterLink :to="{ name: 'forums' }">
+          <Icon icon="mdi:forum" class="nav-icon" /> 
+          <span>Forums</span>
+        </RouterLink>
+
+        <RouterLink :to="{ name: 'clubs'}">
+          <Icon icon="fluent:building-people-20-filled" class="nav-icon" />
+          <span>Clubs</span>
+        </RouterLink>
       </nav>
     </div>
   </header>
@@ -41,7 +51,7 @@ header {
 
 nav {
   /* background-color: green; */
-  font-size: 12px;
+  font-size: 20px;
   text-align: center;
   margin-top: 2rem;
 }
@@ -65,14 +75,15 @@ nav a {
 }
 
 .nav-icon {
-  font-size: 1.25rem; /* Adjust icon size here */
+  font-size: 1.5rem; /* Adjust icon size here */
 }
 nav a:first-of-type {
   border: 0;
 }
 
 main {
-  width: 60%;
-  margin: 0 auto
+  width: 80%;
+  margin: 0 auto;
+  padding-top: 30px;
 }
 </style>

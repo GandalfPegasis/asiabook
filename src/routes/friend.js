@@ -1,28 +1,39 @@
 const router = require("express").Router();
 
-const { getFriendsRequestsByProfileId } = require("../dataaccess/friendDAO");
 const {
+    getFriendRequestByProfileId,
     getFriendsByProfileId,
     getRequestCount,
-} = require("../dataaccess/profileDAO");
+} = require("../dataaccess/friendDAO");
 
 router.get("/", async (req, res) => {
-    // Hardcoded for testing purposes
     const CURRENT_USER_ID = 1;
 
     try {
         const [friends] = await getFriendsByProfileId(CURRENT_USER_ID);
-        const [requestCount] = await getRequestCount(CURRENT_USER_ID);
 
-        const data = {
-            friends,
-            requestCount: requestCount["friend_request"],
-        };
-        console.log("Friends Page Data:", data);
+        const data = [...friends];
+
         res.json(data);
     } catch (err) {
         console.error("Database error:", err);
-        res.status(500).send("<h1>Error loading the friends page</h1>");
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get("/request", async (req, res) => {
+    const CURRENT_USER_ID = 1;
+
+    try {
+        const [friendRequest] =
+            await getFriendRequestByProfileId(CURRENT_USER_ID);
+
+        const data = [...friendRequest];
+
+        res.json(data);
+    } catch (err) {
+        console.error("Database error:", err);
+        res.status(500).json({ error: err.message });
     }
 });
 

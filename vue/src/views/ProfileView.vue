@@ -185,7 +185,7 @@ const fetchFriends = async () => {
   isLoadingFriends.value = true;
   friendsError.value = null;
   try {
-    const response = await apiClient.get<FriendData>('/friends');
+    const response = await apiClient.get<FriendData>('/profile/friends');
     friends.value = response.data;
   } catch (err) {
     console.error(err);
