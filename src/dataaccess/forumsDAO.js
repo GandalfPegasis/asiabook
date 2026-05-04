@@ -1,5 +1,20 @@
 const db = require("../database");
 
+const getForum = async () => {
+    try {
+        const [forums] = await db.query(`
+            SELECT f.id, f.title, f.description, p.name AS author_name, p.role AS author_role 
+            FROM forum f
+            JOIN profile p ON f.post_by = p.id
+            ORDER BY f.id DESC`);
+
+        return forums;
+    } catch (err) {
+        console.error("error fetching forum:", err);
+        throw err;
+    }
+};
+
 const getFormById = async (forumId) => {
     try {
         const [forumResults] = await db.query(

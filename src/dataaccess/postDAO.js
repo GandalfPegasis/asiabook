@@ -17,4 +17,29 @@ const getPostByProfileId = async (profileId) => {
     }
 };
 
-module.exports = { getPostByProfileId };
+const getPosts = async () => {
+    try {
+        const [result] = await db.query(`
+            SELECT 
+                p.id, 
+                p.caption, 
+                prof.name AS author, 
+                prof.role,
+                (
+                    SELECT IFNULL(JSON_ARRAYAGG(location), JSON_ARRAY())
+                    FROM post_picture 
+                    WHERE post_id = p.id
+                ) AS images
+            FROM posts p
+            JOIN profile prof ON p.posted_by = prof.id
+            ORDER BY p.id DESC
+        `);
+
+        return result;
+    } catch (err) {
+        console.error("Error fetching posts:", err);
+        throw err;
+    }
+};
+
+module.exports = { getPostByProfileId, getPosts };

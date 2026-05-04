@@ -177,7 +177,7 @@ onMounted(() => {
 .request-card {
   display: flex;
   align-items: center;
-  background: var(--color-background-soft, #ffffff);
+  background: var(--primary-color, #ffffff);
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: 12px;
   padding: 1rem 1.5rem;

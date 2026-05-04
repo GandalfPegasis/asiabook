@@ -4,9 +4,9 @@
   --vt-c-white-soft: #f8f8f8;
   --vt-c-white-mute: #f2f2f2;
 
-  --vt-c-black: #181818;
+  /* --vt-c-black: #181818;
   --vt-c-black-soft: #222222;
-  --vt-c-black-mute: #282828;
+  --vt-c-black-mute: #282828; */
 
   --vt-c-indigo: #2c3e50;
 
@@ -20,6 +20,12 @@
   --vt-c-text-dark-1: var(--vt-c-white);
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
   --color-background: var(--vt-c-white);
+
+  --bg-color: #131313;
+  --text-color: #ddedf2;
+  --primary-color: #8bcce2;
+  --secondary-color: #1c728e;
+  --accent-color: #4cbfe4;
 
 }
 
@@ -61,7 +67,7 @@
 body {
   min-height: 100vh;
   color: var(--color-text);
-  background: var(--color-background);
+  background: var(--bg-color);
   transition: color 0.5s, background-color 0.5s;
   line-height: 1.6;
   font-family:

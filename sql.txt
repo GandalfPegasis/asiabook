@@ -91,3 +91,55 @@ INSERT INTO post_picture(post_id, location) VALUES(1, 'very nice.jpg');
 INSERT INTO friend_request(requested_by, requested_to) VALUES(2, 1);
 
 INSERT INTO forum(title, post_by, description) VALUES('where do i find femboy near the school', 1, 'i would like to meet 1 femboy that is interested in cooking mama');
+
+INSERT INTO profile (name, email, password, birth_date, nationality, role, department, language, contact_info) VALUES
+('Lin Mei-Hui', 'mei.hui.lin@example.com', 'password', '2001-09-12', 'Taiwan', 'student', 'Computer Science', 'Mandarin, English', 'Line ID: meihui_lin'),
+('John Doe', 'jdoe@example.com', 'password', '1998-04-25', 'USA', 'student', 'Mechanical Engineering', 'English', '+1-555-019-8899'),
+('Dr. Akira Sato', 'asato@example.edu', 'password', '1968-11-03', 'Japan', 'teacher', 'Artificial Intelligence', 'Japanese, English', 'Office: Room 402'),
+('Siti Aminah', 'siti.a@example.com', 'password', '2003-01-18', 'Indonesia', 'student', 'Cloud Computing', 'Indonesian, English', 'WhatsApp: +62-811-222-3333'),
+('Carlos Mendoza', 'cmendoza@example.com', 'password', '2000-12-05', 'Mexico', 'student', 'Graphic Design', 'Spanish, English', '+52-55-1234-5678'),
+('Prof. Emma Williams', 'ewilliams@example.edu', 'password', '1975-06-22', 'UK', 'teacher', 'Data Science', 'English', 'emma.w@example.edu'),
+('Ahmad Khan', 'akhan@example.com', 'password', '1999-08-30', 'Pakistan', 'student', 'Business Administration', 'Urdu, English', '+92-300-1234567'),
+('Chloe Dubois', 'cdubois@example.com', 'password', '2002-05-14', 'France', 'student', 'Linguistics', 'French, English, Mandarin', '+33-6-12-34-56-78'),
+('Dr. Wei Chen', 'weichen@example.edu', 'password', '1982-02-19', 'Singapore', 'teacher', 'Software Engineering', 'Mandarin, English', 'Line ID: prof_wei'),
+('Nadia Petrova', 'npetrova@example.com', 'password', '2001-10-08', 'Russia', 'student', 'Physics', 'Russian, English', '+7-916-123-45-67'),
+('James O Connor', 'joconnor@example.com', 'password', '1997-03-17', 'Ireland', 'student', 'History', 'English, Irish', '+353-85-123-4567'),
+('Prof. Linda Taylor', 'ltaylor@example.edu', 'password', '1965-09-29', 'Canada', 'teacher', 'Mathematics', 'English', 'Office: Room 305B'),
+('Mateo Silva', 'msilva@example.com', 'password', '2004-07-11', 'Brazil', 'student', 'Economics', 'Portuguese, English', '+55-11-98765-4321'),
+('Kim Min-ji', 'minji.kim@example.com', 'password', '2002-11-26', 'South Korea', 'student', 'Media Studies', 'Korean, English', 'KakaoTalk: minji_k'),
+('Dr. Henrik Oberg', 'hoberg@example.edu', 'password', '1971-04-14', 'Sweden', 'teacher', 'Environmental Science', 'Swedish, English', '+46-70-123-45-67');
+
+INSERT INTO clubs (title, description) VALUES
+('Software Engineering Hub', 'Discussions on full-stack development, JavaFX, Node.js, and building SaaS platforms.'),
+('Taiwan Riders', 'Planning island-loop (Huandao) trips, scooter maintenance, and sharing mountain routes.'),
+('IDX Quant Trading', 'Algorithmic trading on the Indonesian Stock Exchange, technical analysis, and corporate actions.'),
+('Expat Network', 'Navigating life overseas, from banking and language learning to finding local opportunities.'),
+('Skincare & Wellness', 'Sharing routines, non-comedogenic product recommendations, and general wellness tips.'),
+('Cloud Builders', 'Practical discussions on cloud infrastructure, Docker, and deployment pipelines.');
+
+INSERT INTO posts (posted_by, caption) VALUES
+(2, 'Just finished the east coast segment of my Huandao! The views near Hualien are unbelievable. 🌊🛵'),
+(1, 'Finally got the offline data syncing mapped out for the new gym management SaaS. Local SQLite to the rescue!'),
+(5, 'IDX took a slight dip today. Looking at the MACD, might be a good time to accumulate some blue chips. Thoughts? 📈'),
+(8, 'Found a great local breakfast spot near Xitun District. Their danbing is absolute perfection! 🍳'),
+(7, 'Switched to a new mineral sunscreen to handle the humid Taiwan weather. No breakouts so far, highly recommend it for sensitive skin.'),
+(1, 'Drafting the new UI for the dashboard. Decided to go full dark mode. Let me know what you guys think of the contrast.'),
+(9, 'Trying to integrate a physical barcode scanner for the gym management system. Since there is no phone app for the offline version, the front desk relies entirely on this USB scanner setup.'),
+(3, 'Did a quick maintenance run today. Changed the oil and cleaned the CVT filter on the SYM Jet SL 125. Getting her ready for the Taichung mountain roads this weekend! 🛵💨'),
+(5, 'Did anyone catch the momentum on BLUE today? The volume spike caught my algorithmic scanner right at the market open. Glad I had my scripts running! 📈'),
+(8, 'For those working in the service industry here in Taiwan, what are the most natural phrases to use when politely asking a customer to wait? "Qǐng shāoděng" sometimes feels a bit too formal for a casual restaurant.'),
+(11, 'Been working on an LSTM model for forecasting time-series data, but the loss curve is plateauing way too early. Should I switch to a GRU architecture or just aggressively tweak the learning rate first?'),
+(7, 'Updating my evening routine. The Clarins serum is great, but I need a solid double-cleansing oil that won''t irritate acne-prone skin. Any thoughts on the Manyo Pure Cleansing Oil?'),
+(1, 'Pitching the new SaaS to a gym owner tomorrow. I am going to mention the success we had scaling the management system at the Roca Clubhouse to build some early credibility. Wish me luck! 🤞');
+
+
+
+INSERT INTO post_picture (post_id, location) VALUES
+(7, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fiso.500px.com%2Fwp-content%2Fuploads%2F2016%2F02%2Fstock-photo-114337435.jpg&imgrefurl=https%3A%2F%2Fiso.500px.com%2F30-joyful-photos-that-celebrate-every-kind-of-love%2F&docid=a1fQSOhTc5Ah3M&tbnid=3_HOqRzFFNkYRM&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIKhAB..i&w=1600&h=1066&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIKhAB'),
+(7, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fiso.500px.com%2Fwp-content%2Fuploads%2F2016%2F11%2Fstock-photo-159533631-1500x1000.jpg&imgrefurl=https%3A%2F%2Fiso.500px.com%2F11-outstanding-photos-show-connections%2F&docid=0mTvu8UCEh3rwM&tbnid=UnjJr4ox9xHn9M&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIJxAB..i&w=1500&h=1000&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIJxAB'),
+(8, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fimg.freepik.com%2Ffree-photo%2Fmedium-shot-man-taking-photos_23-2150343029.jpg%3Fsemt%3Dais_hybrid%26w%3D740%26q%3D80&imgrefurl=https%3A%2F%2Fwww.freepik.com%2Fphotos%2Fpicture-photo&docid=H0ft2PBaSw5IyM&tbnid=KUEnKGLYaFgF6M&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIJRAB..i&w=740&h=494&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIJRAB'),
+(9, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fimg.freepik.com%2Ffree-photo%2Fmedium-shot-man-taking-photos_23-2150343029.jpg%3Fsemt%3Dais_hybrid%26w%3D740%26q%3D80&imgrefurl=https%3A%2F%2Fwww.freepik.com%2Fphotos%2Fpicture-photo&docid=H0ft2PBaSw5IyM&tbnid=KUEnKGLYaFgF6M&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIJRAB..i&w=740&h=494&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIJRAB'),
+(11, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fstatic.vecteezy.com%2Fsystem%2Fresources%2Fthumbnails%2F041%2F880%2F991%2Fsmall%2Fai-generated-pic-artistic-depiction-of-sunflowers-under-a-vast-cloudy-sky-photo.jpg&imgrefurl=https%3A%2F%2Fwww.vecteezy.com%2Ffree-photos%2Fpic&docid=upklC6LCi7u36M&tbnid=9t0RJo5--FWQ0M&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIGxAB..i&w=622&h=350&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIGxAB'),
+(11, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fcdn.pixabay.com%2Fphoto%2F2024%2F05%2F26%2F10%2F15%2Fbird-8788491_1280.jpg&imgrefurl=https%3A%2F%2Fpixabay.com%2Fphotos%2Fbird-blue-clouds-weather-pen-8788491%2F&docid=UHcUa7a-6-cYRM&tbnid=90TpIHBM_bySlM&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIGRAB..i&w=1280&h=853&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIGRAB'),
+(12, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fwww.maxphoto.co.uk%2Fmedia%2Fmagefan_blog%2Fhow_to_take_a_good_photo.jpg&imgrefurl=https%3A%2F%2Fwww.maxphoto.co.uk%2Finspire%2Fhow-to-take-a-good-photo&docid=EQfsqjsO5JgjOM&tbnid=n88tVoSezV_6WM&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQISRAB..i&w=947&h=567&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQISRAB'),
+(13, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fwww.maxphoto.co.uk%2Fmedia%2Fmagefan_blog%2Fhow_to_take_a_good_photo.jpg&imgrefurl=https%3A%2F%2Fwww.maxphoto.co.uk%2Finspire%2Fhow-to-take-a-good-photo&docid=EQfsqjsO5JgjOM&tbnid=n88tVoSezV_6WM&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQISRAB..i&w=947&h=567&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQISRAB+');
