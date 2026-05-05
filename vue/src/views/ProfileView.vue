@@ -116,6 +116,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import { apiClient } from '@/api/api';
 import PostItem from '../components/PostItem.vue';
@@ -148,6 +149,10 @@ interface FriendData {
   requestCount: number;
 }
 
+// Get route parameters
+const route = useRoute();
+const profileId = route.params.id as string | undefined;
+
 // User Profile State
 const users = ref<User | null>(null);
 const isLoading = ref(true);
@@ -171,7 +176,9 @@ const fetchProfile = async () => {
   isLoading.value = true;
   error.value = null;
   try {
-    const response = await apiClient.get<User>('/profile');
+    // If profileId is provided, fetch that user's profile, otherwise fetch current user
+    const endpoint = profileId ? `/profile/${profileId}` : '/profile';
+    const response = await apiClient.get<User>(endpoint);
     users.value = response.data;
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'An error occurred while loading the profile.';
@@ -185,7 +192,9 @@ const fetchFriends = async () => {
   isLoadingFriends.value = true;
   friendsError.value = null;
   try {
-    const response = await apiClient.get<FriendData>('/profile/friends');
+    // If viewing another user's profile, fetch their friends, otherwise fetch current user's friends
+    const endpoint = profileId ? `/profile/${profileId}/friends` : '/profile/friends';
+    const response = await apiClient.get<FriendData>(endpoint);
     friends.value = response.data;
   } catch (err) {
     console.error(err);
