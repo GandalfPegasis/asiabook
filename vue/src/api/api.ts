@@ -172,7 +172,10 @@ export const api = {
 
     async sendMessage(contactId: number, content: string): Promise<any> {
       const response = await apiClient.post(`/messages/conversations/${contactId}`, { content });
+<<<<<<< HEAD
       // TODO ws here
+=======
+>>>>>>> 2502acc96136733e8f54272237e9ee82151237d1
       return response.data;
     },
 
