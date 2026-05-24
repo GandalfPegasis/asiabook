@@ -31,8 +31,18 @@ CREATE TABLE posts(
     id int primary key auto_increment,
     posted_by int,
     caption text,
+    likes int default 0,
     FOREIGN KEY (posted_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
 );
+
+create table comment_post(
+    id int primary key auto_increment,
+    comment_by int,
+    post_id int,
+    content text NOT NULL,
+    FOREIGN KEY (comment_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON UPDATE cascade ON DELETE cascade,
+)
 
 CREATE TABLE post_picture(
     id int primary key auto_increment,
