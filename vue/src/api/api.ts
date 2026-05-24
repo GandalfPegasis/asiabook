@@ -172,10 +172,64 @@ export const api = {
 
     async sendMessage(contactId: number, content: string): Promise<any> {
       const response = await apiClient.post(`/messages/conversations/${contactId}`, { content });
-<<<<<<< HEAD
-      // TODO ws here
-=======
->>>>>>> 2502acc96136733e8f54272237e9ee82151237d1
+
+      return response.data;
+    },
+
+    // Forum API
+    async getForums(params?: { clubId?: number }): Promise<any[]> {
+      const response = await apiClient.get('/forum', { params });
+      return response.data;
+    },
+
+    // Clubs
+    async getClubs(): Promise<any[]> {
+      const response = await apiClient.get('/clubs');
+      return response.data;
+    },
+
+    async getClubById(id: number): Promise<any> {
+      const response = await apiClient.get(`/clubs/${id}`);
+      return response.data;
+    },
+
+    async getClubMembers(clubId: number): Promise<any[]> {
+      const response = await apiClient.get(`/clubs/${clubId}/members`);
+      return response.data;
+    },
+
+    async joinClub(clubId: number): Promise<any> {
+      const response = await apiClient.post(`/clubs/${clubId}/join`);
+      return response.data;
+    },
+
+    async getForumById(id: number): Promise<any> {
+      const response = await apiClient.get(`/forum/${id}`);
+      return response.data;
+    },
+
+    async getReplies(forumId: number): Promise<any[]> {
+      const response = await apiClient.get(`/forum/${forumId}/replies`);
+      return response.data;
+    },
+
+    async createForum(title: string, description?: string, club_id?: number): Promise<any> {
+      const response = await apiClient.post('/forum', { title, description, club_id });
+      return response.data;
+    },
+
+    async createReply(forumId: number, content: string, reply_of?: number): Promise<any> {
+      const response = await apiClient.post(`/forum/${forumId}/replies`, { content, reply_of });
+      return response.data;
+    },
+
+    async voteForum(forumId: number, delta = 1): Promise<{ votes: number; user_vote: number }> {
+      const response = await apiClient.post(`/forum/${forumId}/vote`, { delta });
+      return response.data;
+    },
+
+    async voteReply(forumId: number, replyId: number, delta = 1): Promise<{ votes: number; user_vote: number }> {
+      const response = await apiClient.post(`/forum/${forumId}/replies/${replyId}/vote`, { delta });
       return response.data;
     },
 

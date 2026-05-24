@@ -49,6 +49,13 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/forums/:id',
+      name: 'thread',
+      component: () => import('../views/ThreadView.vue'),
+      props: true,
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/clubs',
       name: 'clubs',
       component: () => import('../views/ClubView.vue'),

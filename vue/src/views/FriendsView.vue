@@ -77,10 +77,6 @@ const fetchSuggestions = async () => {
   suggestionsError.value = null;
   try {
     suggestions.value = await api.getFriendSuggestions();
-<<<<<<< HEAD
-    console.log(suggestions.value);
-=======
->>>>>>> 2502acc96136733e8f54272237e9ee82151237d1
   } catch (err) {
     console.error(err);
     suggestionsError.value = 'Failed to load friend suggestions.';
