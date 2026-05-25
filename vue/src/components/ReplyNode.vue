@@ -3,9 +3,7 @@ import { defineProps, defineEmits } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../api/api';
 
-// Allow recursive usage in template
-// @ts-ignore
-defineOptions?.({ name: 'ReplyNode' });
+//defineOptions?.({ name: 'ReplyNode' });
 
 const props = defineProps<{ reply: any; forumId: number }>();
 const emit = defineEmits(['reply-to']);

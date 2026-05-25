@@ -25,14 +25,16 @@ const getPosts = async () => {
                 p.caption, 
                 prof.name AS author, 
                 prof.role,
-                (
-                    SELECT IFNULL(JSON_ARRAYAGG(location), JSON_ARRAY())
-                    FROM post_picture 
-                    WHERE post_id = p.id
+                IF(
+                    COUNT(pp.location) > 0, 
+                    CONCAT('[', GROUP_CONCAT(CONCAT('"', pp.location, '"')), ']'), 
+                    '[]'
                 ) AS images
             FROM posts p
             JOIN profile prof ON p.posted_by = prof.id
-            ORDER BY p.id DESC
+            LEFT JOIN post_picture pp ON pp.post_id = p.id
+            GROUP BY p.id, prof.name, prof.role
+            ORDER BY p.id DESC;
         `);
 
         return result;
