@@ -9,6 +9,7 @@ const clubs = ref<any[]>([]);
 const selectedClub = ref<any | null>(null);
 const clubMembers = ref<any[]>([]);
 const selectedClubFilter = ref<number | null>(null);
+const clubSearchQuery = ref('');
 const forums = ref<any[]>([]);
 const selectedForum = ref<any | null>(null);
 const replies = ref<any[]>([]);
@@ -20,6 +21,11 @@ const newPostDescription = ref('');
 const creatingPost = ref(false);
 const newReplyContent = ref('');
 const replyingToId = ref<number | null>(null);
+
+const filteredClubs = computed(() => {
+  if (!clubSearchQuery.value.trim()) return clubs.value;
+  return clubs.value.filter(c => c.title.toLowerCase().includes(clubSearchQuery.value.toLowerCase()));
+});
 
 const filterLabel = computed(() => selectedClub.value ? selectedClub.value.title : 'All Clubs');
 
@@ -33,12 +39,22 @@ const fetchClubs = async () => {
   }
 };
 
+const getClubTitle = (clubId: number | null) => {
+  if (!clubId) return null;
+  return clubs.value.find(c => c.id === clubId)?.title || null;
+};
+
 const fetchForums = async () => {
   isLoading.value = true;
   try {
     const params: any = {};
     if (selectedClubFilter.value) params.clubId = selectedClubFilter.value;
     forums.value = await api.getForums(Object.keys(params).length ? params : undefined);
+    // Add club titles to posts
+    forums.value = forums.value.map((post: any) => ({
+      ...post,
+      club_title: getClubTitle(post.club_id)
+    }));
     if (sortMode.value === 'top') {
       forums.value.sort((a, b) => (b.votes || 0) - (a.votes || 0));
     } else {
@@ -192,10 +208,24 @@ onMounted(() => {
           <label>Title</label>
           <input v-model="newPostTitle" placeholder="Start a thread title" />
           <label>Club</label>
-          <select v-model="selectedClubFilter">
-            <option :value="null">All clubs</option>
-            <option v-for="club in clubs" :key="club.id" :value="club.id">{{ club.title }}</option>
-          </select>
+          <div class="club-selector">
+            <button
+              v-for="club in clubs"
+              :key="club.id"
+              :class="{ active: selectedClubFilter === club.id }"
+              @click="selectedClubFilter = selectedClubFilter === club.id ? null : club.id"
+              class="club-select-btn"
+            >
+              {{ club.title }}
+            </button>
+            <button
+              v-if="selectedClubFilter"
+              @click="selectedClubFilter = null"
+              class="club-select-btn clear"
+            >
+              Clear
+            </button>
+          </div>
           <label>Description</label>
           <textarea v-model="newPostDescription" placeholder="Write some context for your thread"></textarea>
           <div class="create-actions">
@@ -205,13 +235,21 @@ onMounted(() => {
 
         <div class="panel clubs-panel">
           <div class="panel-title-row">
-            <h3>Clubs</h3>
-            <button class="button-secondary" @click="clearClubFilter" v-if="selectedClub">Clear</button>
+            <h3>Filter Clubs</h3>
           </div>
+          <input
+            v-model="clubSearchQuery"
+            type="text"
+            placeholder="Search clubs..."
+            class="club-search-input"
+          />
           <div class="club-list">
+            <div v-if="filteredClubs.length === 0" class="no-clubs">
+              No clubs found
+            </div>
             <div
               class="club-card"
-              v-for="club in clubs"
+              v-for="club in filteredClubs"
               :key="club.id"
               :class="{ active: selectedClubFilter === club.id }"
               @click="loadClub(club.id)"
@@ -261,7 +299,10 @@ onMounted(() => {
                 <button :class="{ active: post.user_vote === -1 }" @click.stop.prevent="voteForum(post.id, -1)">▼</button>
               </div>
               <div class="thread-content">
-                <div class="thread-title">{{ post.title }}</div>
+                <div class="thread-title-row">
+                  <div class="thread-title">{{ post.title }}</div>
+                  <span v-if="post.club_title" class="thread-club-tag">{{ post.club_title }}</span>
+                </div>
                 <p class="thread-description">{{ post.description || 'No description yet.' }}</p>
                 <div class="thread-meta">
                   <span class="author-link" @click.stop="gotoProfile(post.author_id || post.post_by)"><Icon icon="mdi:account-circle-outline" /> {{ post.author_name || 'Anonymous' }}</span>
@@ -385,7 +426,6 @@ onMounted(() => {
 }
 
 .new-post {
-  position: sticky;
   top: 24px;
 }
 
@@ -606,6 +646,71 @@ onMounted(() => {
   line-height: 1.5;
 }
 
+.club-search-input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid #dbeafe;
+  background: #f8fbff;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  color: #111827;
+  margin-bottom: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.club-search-input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.no-clubs {
+  padding: 18px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.club-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.club-select-btn {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid #dbeafe;
+  background: #f8fbff;
+  color: #111827;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.club-select-btn:hover {
+  border-color: #4f46e5;
+  background: #eef2ff;
+}
+
+.club-select-btn.active {
+  background: #4f46e5;
+  color: white;
+  border-color: #4f46e5;
+}
+
+.club-select-btn.clear {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.club-select-btn.clear:hover {
+  background: #fecaca;
+}
+
 .author-link:hover {
   color: #2563eb;
   cursor: pointer;
@@ -709,11 +814,31 @@ onMounted(() => {
   gap: 10px;
 }
 
+.thread-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .thread-title {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
   color: #111827;
+  flex: 1;
+}
+
+.thread-club-tag {
+  display: inline-block;
+  background: #eef2ff;
+  color: #4f46e5;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .thread-description {
@@ -865,6 +990,7 @@ onMounted(() => {
 .small-card h4 {
   margin: 0 0 10px;
   font-size: 1rem;
+  color: #000000;
 }
 
 .small-card p,

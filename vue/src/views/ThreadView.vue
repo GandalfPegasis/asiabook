@@ -97,7 +97,9 @@ onMounted(async () => {
 <template>
   <div class="thread-page">
     <div class="page-header">
-      <button type="button" class="button-secondary" @click="back">Back</button>
+      <button type="button" class="button-back" @click="back" title="Back">
+        <Icon icon="mdi:arrow-left" width="24" height="24" />
+      </button>
       <div>
         <h1>{{ forum?.title || 'Thread' }}</h1>
         <p class="page-subtitle">Read the full discussion and leave a reply below.</p>
@@ -178,16 +180,22 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
+.page-header > div {
+  flex: 1;
+}
+
 .page-header h1 {
   margin: 0;
   font-size: 2rem;
   color: #111827;
+  font-weight: 900;
 }
 
 .page-subtitle {
   margin: 8px 0 0;
-  color: #6b7280;
-  font-size: 0.95rem;
+  color: #64748b;
+  font-size: 0.97rem;
+  font-weight: 500;
 }
 
 .button-primary,
@@ -214,12 +222,18 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-.button-secondary {
+.button-back {
   background: #eef2ff;
   color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
 }
 
-.button-secondary:hover {
+.button-back:hover {
   background: #dbeafe;
 }
 
