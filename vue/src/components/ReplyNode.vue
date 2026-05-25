@@ -61,24 +61,116 @@ const gotoProfile = (id?: number) => {
 
 <style scoped>
 .reply-item {
-  border-left: 2px solid #e5e7eb;
-  padding-left: 16px;
+  padding: 16px 20px; 
   margin-bottom: 16px;
-  background: transparent;
+  background: #ffffff;
+  border-radius: 8px;
 }
-.reply-meta { display:flex; align-items:center; gap:10px; margin-bottom:10px }
-.avatar { width:36px; height:36px; min-width:36px; border-radius:50%; background:#4f46e5; display:flex; align-items:center; justify-content:center; font-weight:700; color:white; cursor:pointer; flex-shrink:0; transition:all 0.18s ease; font-size:0.95rem }
-.avatar:hover { transform:translateY(-2px); background:#4338ca }
-.name { font-weight:600; color:#111827; cursor:pointer; transition:all 0.18s ease; font-size:0.97rem }
-.name:hover { color:#4f46e5 }
-.votes { display:flex; align-items:center; gap:4px; flex-shrink:0; margin-left:auto }
-.votes button { border:none; background:#dbeafe; padding:4px 5px; border-radius:5px; cursor:pointer; color:#4f46e5; font-weight:600; transition:all 0.18s ease; font-size:0.9rem; width:28px; height:28px; display:flex; align-items:center; justify-content:center }
-.votes button.active { background:#4f46e5; color:white; border-color:#4f46e5 }
-.votes button:hover { background:#4f46e5; color:white }
-.votes span { font-weight:600; color:#4f46e5; font-size:0.9rem; min-width:20px; text-align:center }
-.reply-content { margin-top:8px; margin-bottom:8px; color:#111827; font-size:0.98rem; line-height:1.5 }
-.reply-actions { font-size:13px; margin-top:6px }
-.reply-actions button { background:transparent; border:none; color:#4f46e5; cursor:pointer; font-weight:600; text-decoration:none; transition:all 0.18s ease }
-.reply-actions button:hover { color:#4338ca; text-decoration:underline }
-.reply-children { margin-left:12px; margin-top:8px }
+
+.reply-meta { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  margin-bottom: 12px; 
+  width: 100%;
+}
+
+.avatar { 
+  width: 36px; 
+  height: 36px; 
+  min-width: 36px; 
+  border-radius: 50%; 
+  background: #4f46e5; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  font-weight: 700; 
+  color: white; 
+  cursor: pointer; 
+  flex-shrink: 0; 
+  font-size: 0.9rem;
+}
+
+.name { 
+  font-weight: 600; 
+  color: #111827; 
+  cursor: pointer; 
+  font-size: 0.95rem; 
+}
+
+.votes { 
+  display: flex; 
+  align-items: center; 
+  gap: 4px; 
+  flex-shrink: 0; 
+  margin-left: auto; 
+  background: #f3f4f6; 
+  padding: 4px 8px;
+  border-radius: 20px; 
+}
+
+.votes button { 
+  border: none; 
+  background: transparent; 
+  padding: 0;
+  cursor: pointer; 
+  color: #6b7280; 
+  font-weight: 600; 
+  transition: all 0.15s ease; 
+  width: 24px; 
+  height: 24px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  font-size: 0.85rem;
+}
+.votes button:hover {
+  color: #4f46e5;
+  background: rgba(79, 70, 229, 0.1);
+  border-radius: 50%;
+}
+.votes button.active { 
+  color: #4f46e5; 
+}
+
+.votes span { 
+  font-weight: 700; 
+  color: #374151; 
+  font-size: 0.85rem; 
+  min-width: 16px; 
+  text-align: center; 
+}
+
+.reply-content { 
+  margin-left: 48px; 
+  margin-top: 0;
+  margin-bottom: 8px; 
+  color: #374151; 
+  font-size: 0.95rem; 
+  line-height: 1.5; 
+}
+
+.reply-actions { 
+  margin-left: 48px; 
+  font-size: 13px; 
+}
+.reply-actions button { 
+  background: transparent; 
+  border: none; 
+  color: #6b7280; 
+  cursor: pointer; 
+  font-weight: 600; 
+  padding: 0;
+  transition: all 0.15s ease; 
+}
+.reply-actions button:hover { 
+  color: #4f46e5; 
+  text-decoration: underline; 
+}
+
+.reply-children { 
+  margin-left: 48px; 
+  margin-top: 12px; 
+}
 </style>
+
