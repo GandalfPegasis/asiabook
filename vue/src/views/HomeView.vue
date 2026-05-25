@@ -1,46 +1,101 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { Icon } from '@iconify/vue';
+import { apiClient } from '../api/api'; 
 
-const feedPosts = ref([]);
+const feedPosts = ref<any[]>([]);
 const isLoading = ref(true);
 const errorMessage = ref('');
 
-// Fetch posts from the Express backend
+// State for the composition area
+const newPostContent = ref('');
+const isPosting = ref(false);
+
+// Fetch posts using Axios
 const fetchPosts = async () => {
   try {
-    const response = await fetch('http://localhost:3000/posts/');
+    const response = await apiClient.get('/posts/');
+    const data = response.data;
     
-    if (!response.ok) {
-      throw new Error('Failed to connect to the server.');
-    }
-    
-    const data = await response.json();
-    
-    // Map the database data to fit our frontend UI
-    feedPosts.value = data.map(post => ({
+    feedPosts.value = data.map((post: any) => ({
       id: post.id,
       author: post.author,
       role: post.role,
       caption: post.caption,
-      // Prepend the backend URL to the image paths so Vue can find them
-      images: post.images,
-      
-      // Placeholders for UI elements we haven't added to the database yet
+      images: post.images || [],
       timeAgo: 'Recently', 
-      likes: Math.floor(Math.random() * 50), 
-      comments: Math.floor(Math.random() * 20) 
+      likes: post.likes || 0,
+      comments: post.comments || 0,
+      // Add frontend tracking state
+      hasLiked: false, 
+      isLiking: false 
     }));
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching posts:', error);
-    errorMessage.value = error.message;
+    errorMessage.value = error.response?.data?.message || error.message || 'Failed to load posts';
   } finally {
     isLoading.value = false;
   }
 };
 
-// Run the fetch function when the component loads
+// Handle submitting a new post using Axios
+const submitPost = async () => {
+  if (!newPostContent.value.trim()) return;
+  isPosting.value = true;
+  
+  try {
+    await apiClient.post('/posts/', {
+      author: 'Current User',
+      role: 'Member',
+      caption: newPostContent.value,
+      images: [] 
+    });
+
+    newPostContent.value = '';
+    await fetchPosts();
+
+  } catch (error) {
+    console.error('Error creating post:', error);
+    alert('Could not post your message. Please try again.');
+  } finally {
+    isPosting.value = false;
+  }
+};
+
+// Updated Like function with API integration and Optimistic UI
+const likePost = async (postId: number) => {
+  const post = feedPosts.value.find((p: any) => p.id === postId);
+  
+  // Prevent duplicate requests while one is pending
+  if (!post || post.isLiking) return;
+
+  // 1. Optimistic Update (update UI instantly)
+  const isUnliking = post.hasLiked;
+  post.hasLiked = !isUnliking;
+  post.likes += isUnliking ? -1 : 1;
+  post.isLiking = true;
+
+  try {
+    // 2. Send request to backend
+    // (Adjust the URL endpoint to match your Express router)
+    if (isUnliking) {
+       await apiClient.delete(`/posts/${postId}/like`);
+    } else {
+       await apiClient.post(`/posts/${postId}/like`);
+    }
+  } catch (error) {
+    console.error('Error liking post:', error);
+    
+    // 3. Revert the UI if the API call fails
+    post.hasLiked = isUnliking;
+    post.likes += isUnliking ? 1 : -1;
+    alert('Failed to update like status.');
+  } finally {
+    post.isLiking = false;
+  }
+};
+
 onMounted(() => {
   fetchPosts();
 });
@@ -96,10 +151,20 @@ onMounted(() => {
         </div>
 
         <div class="post-actions">
-          <button class="action-btn">
-            <Icon icon="mdi:heart-outline" class="action-icon" />
+          <!-- Updated Like Button -->
+          <button 
+            class="action-btn"
+            :class="{ 'is-liked': post.hasLiked }"
+            @click="likePost(post.id)"
+            :disabled="post.isLiking"
+          >
+            <Icon 
+              :icon="post.hasLiked ? 'mdi:heart' : 'mdi:heart-outline'" 
+              class="action-icon" 
+            />
             <span>{{ post.likes }}</span>
           </button>
+          
           <button class="action-btn">
             <Icon icon="mdi:comment-outline" class="action-icon" />
             <span>{{ post.comments }}</span>
@@ -116,6 +181,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* Active Like Button Styles */
+.action-btn.is-liked {
+  color: #ef4444; /* Red color for liked state */
+  opacity: 1;
+}
+
+.action-btn.is-liked .action-icon {
+  color: #ef4444;
+}
 .feed-container {
   /* Exact Color Palette */
   --bg-color: #131313;
