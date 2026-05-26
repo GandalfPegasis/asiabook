@@ -71,18 +71,13 @@ const clubs = ref([
 </template>
 
 <style scoped>
+/* Base Layout & Typography */
 .page-container {
-  
-  /* Layout & Functional Colors */
-  --card-bg: rgba(28, 114, 142, 0.08);
-  --card-hover: rgba(76, 191, 228, 0.12);
-  --border-color: rgba(28, 114, 142, 0.4);
-
   min-height: 100vh;
-  background-color: var(--bg-color);
-  color: var(--text-color);
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  color: #1e293b;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  padding: 40px 24px;
+  padding: 3rem 2rem;
   box-sizing: border-box;
 }
 
@@ -93,24 +88,24 @@ h1, h2, p {
 /* Header */
 .page-header {
   max-width: 1200px;
-  margin: 0 auto 40px auto;
+  margin: 0 auto 3rem auto;
   text-align: center;
 }
 
 .page-header h1 {
-  font-size: 36px;
-  color: var(--primary-color);
-  margin-bottom: 12px;
+  font-size: 2.5rem;
+  color: #0f172a;
+  letter-spacing: -0.04em;
+  margin-bottom: 0.75rem;
   font-weight: 700;
 }
 
 .page-header p {
-  font-size: 16px;
-  color: var(--text-color);
-  opacity: 0.8;
+  font-size: 1.1rem;
+  color: #475569;
   max-width: 600px;
   margin: 0 auto;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* Grid Layout */
@@ -119,7 +114,7 @@ h1, h2, p {
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 24px;
+  gap: 1.5rem;
 }
 
 @media (min-width: 768px) {
@@ -136,78 +131,91 @@ h1, h2, p {
 
 /* Card Styling */
 .club-card {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 32px 24px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+  padding: 2.5rem 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  transition: transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .club-card:hover {
   transform: translateY(-4px);
-  background-color: var(--card-hover);
-  border-color: var(--accent-color);
+  box-shadow: 0 20px 32px rgba(15, 23, 42, 0.08);
+  border-color: #c7d2fe;
 }
 
+/* Icons */
 .club-icon-wrapper {
   width: 64px;
   height: 64px;
-  border-radius: 50%;
-  background-color: rgba(139, 204, 226, 0.1);
+  border-radius: 20px;
+  background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
+  color: #6366f1;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
+  transition: transform 0.3s ease;
+}
+
+.club-card:hover .club-icon-wrapper {
+  transform: scale(1.05);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
 }
 
 .club-icon {
   width: 32px;
   height: 32px;
-  color: var(--primary-color);
 }
 
+/* Card Content */
 .club-content {
   flex-grow: 1;
-  margin-bottom: 24px;
+  margin-bottom: 2rem;
 }
 
 .club-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--primary-color);
-  margin-bottom: 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
 }
 
 .club-description {
-  font-size: 14px;
+  font-size: 0.95rem;
   line-height: 1.6;
-  color: var(--text-color);
-  opacity: 0.85;
+  color: #64748b;
 }
 
-/* Button */
+/* Action Button */
 .join-btn {
+  width: 100%;
+  justify-content: center;
   background: transparent;
-  border: 1px solid var(--secondary-color);
-  color: var(--accent-color);
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  border: 2px solid #e0e7ff;
+  color: #6366f1;
+  padding: 0.85rem 1.5rem;
+  border-radius: 16px;
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   transition: all 0.2s ease;
 }
 
 .join-btn:hover {
-  background-color: var(--secondary-color);
-  color: var(--text-color);
+  background: #6366f1;
+  border-color: #6366f1;
+  color: white;
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.15);
 }
 
 .btn-icon {
@@ -218,5 +226,20 @@ h1, h2, p {
 
 .join-btn:hover .btn-icon {
   transform: translateX(4px);
+}
+
+/* Mobile Adjustments */
+@media (max-width: 720px) {
+  .page-container {
+    padding: 2rem 1rem;
+  }
+  
+  .club-card {
+    padding: 2rem 1.5rem;
+  }
+  
+  .page-header h1 {
+    font-size: 2rem;
+  }
 }
 </style>

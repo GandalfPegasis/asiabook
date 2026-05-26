@@ -26,7 +26,6 @@ const fetchPosts = async () => {
       timeAgo: 'Recently', 
       likes: post.likes || 0,
       comments: post.comments || 0,
-      // Add frontend tracking state
       hasLiked: false, 
       isLiking: false 
     }));
@@ -67,18 +66,14 @@ const submitPost = async () => {
 const likePost = async (postId: number) => {
   const post = feedPosts.value.find((p: any) => p.id === postId);
   
-  // Prevent duplicate requests while one is pending
   if (!post || post.isLiking) return;
 
-  // 1. Optimistic Update (update UI instantly)
   const isUnliking = post.hasLiked;
   post.hasLiked = !isUnliking;
   post.likes += isUnliking ? -1 : 1;
   post.isLiking = true;
 
   try {
-    // 2. Send request to backend
-    // (Adjust the URL endpoint to match your Express router)
     if (isUnliking) {
        await apiClient.delete(`/posts/${postId}/like`);
     } else {
@@ -87,7 +82,6 @@ const likePost = async (postId: number) => {
   } catch (error) {
     console.error('Error liking post:', error);
     
-    // 3. Revert the UI if the API call fails
     post.hasLiked = isUnliking;
     post.likes += isUnliking ? 1 : -1;
     alert('Failed to update like status.');
@@ -111,22 +105,22 @@ onMounted(() => {
 
     <div class="feed-list">
       
-      <div v-if="isLoading" class="status-message">
+      <div v-if="isLoading" class="status-message loading-state">
         <Icon icon="mdi:loading" class="spin-icon" />
         <p>Loading community posts...</p>
       </div>
 
-      <div v-else-if="errorMessage" class="status-message error">
+      <div v-else-if="errorMessage" class="status-message error-state">
         <Icon icon="mdi:alert-circle-outline" class="error-icon" />
         <p>{{ errorMessage }}</p>
-        <button @click="fetchPosts" class="retry-btn">Retry</button>
+        <button @click="fetchPosts" class="btn-primary">Retry</button>
       </div>
 
       <article v-else v-for="post in feedPosts" :key="post.id" class="post-card">
         
         <div class="post-header">
           <div class="author-avatar">
-            {{ post.author.charAt(0) }}
+            {{ post.author.charAt(0).toUpperCase() }}
           </div>
           <div class="author-meta">
             <div class="author-name-row">
@@ -151,7 +145,6 @@ onMounted(() => {
         </div>
 
         <div class="post-actions">
-          <!-- Updated Like Button -->
           <button 
             class="action-btn"
             :class="{ 'is-liked': post.hasLiked }"
@@ -169,6 +162,7 @@ onMounted(() => {
             <Icon icon="mdi:comment-outline" class="action-icon" />
             <span>{{ post.comments }}</span>
           </button>
+          
           <button class="action-btn share-btn">
             <Icon icon="mdi:share-variant-outline" class="action-icon" />
           </button>
@@ -181,33 +175,13 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Active Like Button Styles */
-.action-btn.is-liked {
-  color: #ef4444; /* Red color for liked state */
-  opacity: 1;
-}
-
-.action-btn.is-liked .action-icon {
-  color: #ef4444;
-}
+/* Base Layout & Typography */
 .feed-container {
-  /* Exact Color Palette */
-  --bg-color: #131313;
-  --text-color: #ddedf2;
-  --primary-color: #8bcce2;
-  --secondary-color: #1c728e;
-  --accent-color: #4cbfe4;
-  
-  /* Layout Colors */
-  --card-bg: rgba(28, 114, 142, 0.08);
-  --border-color: rgba(28, 114, 142, 0.4);
-  --hover-bg: rgba(76, 191, 228, 0.12);
-
   min-height: 100vh;
-  background-color: var(--bg-color);
-  color: var(--text-color);
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  color: #1e293b;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  padding: 40px 24px;
+  padding: 2rem;
   box-sizing: border-box;
 }
 
@@ -216,62 +190,68 @@ h1, p { margin: 0; }
 /* Header */
 .feed-header {
   max-width: 680px;
-  margin: 0 auto 32px auto;
+  margin: 0 auto 1.5rem auto;
 }
 
 .feed-header h1 {
-  font-size: 28px;
-  color: var(--primary-color);
-  margin-bottom: 8px;
-  font-weight: 700;
+  font-size: 2rem;
+  color: #0f172a;
+  letter-spacing: -0.04em;
+  margin-bottom: 0.5rem;
 }
 
 .feed-header p {
-  color: var(--text-color);
-  opacity: 0.8;
+  color: #475569;
+  font-size: 1rem;
 }
 
 /* Status Messages (Loading/Error) */
 .status-message {
   text-align: center;
-  padding: 40px;
-  background-color: var(--card-bg);
-  border: 1px dashed var(--border-color);
-  border-radius: 16px;
-  color: var(--text-color);
+  padding: 2.5rem;
+  background: white;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+  color: #475569;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 1rem;
 }
 
 .spin-icon {
-  font-size: 32px;
-  color: var(--primary-color);
+  font-size: 2.5rem;
+  color: #6366f1;
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
 .error-icon {
-  font-size: 32px;
-  color: #ef4444; /* Standard error red */
+  font-size: 3rem;
+  color: #ef4444; 
 }
 
-.retry-btn {
-  margin-top: 12px;
-  background-color: transparent;
-  border: 1px solid var(--primary-color);
-  color: var(--primary-color);
-  padding: 8px 16px;
-  border-radius: 6px;
+/* Primary Button (Matches btn-send from Messenger) */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 16px;
+  border: none;
+  background: #6366f1;
+  color: white;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  margin-top: 0.5rem;
 }
 
-.retry-btn:hover {
-  background-color: var(--primary-color);
-  color: var(--bg-color);
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(99, 102, 241, 0.18);
 }
 
 /* Feed List & Cards */
@@ -280,87 +260,92 @@ h1, p { margin: 0; }
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 1.5rem;
 }
 
 .post-card {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 24px;
+  background: white;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+  padding: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.post-card:hover {
+  box-shadow: 0 20px 32px rgba(15, 23, 42, 0.06);
 }
 
 /* Post Header */
 .post-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .author-avatar {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background-color: var(--secondary-color);
-  color: var(--text-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .author-meta {
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
 }
 
 .author-name-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .author-name {
   font-weight: 600;
-  font-size: 16px;
-  color: var(--primary-color);
+  font-size: 1.05rem;
+  color: #0f172a;
 }
 
 .author-role {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  background-color: rgba(28, 114, 142, 0.3);
-  color: var(--accent-color);
-  border: 1px solid var(--secondary-color);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #4f46e5;
+  font-weight: 600;
 }
 
 .post-time {
-  font-size: 13px;
-  color: var(--text-color);
-  opacity: 0.6;
-  margin-top: 2px;
+  font-size: 0.85rem;
+  color: #94a3b8;
 }
 
 /* Post Caption */
 .post-caption {
-  font-size: 15px;
+  font-size: 1rem;
   line-height: 1.6;
-  margin-bottom: 16px;
-  color: var(--text-color);
-  opacity: 0.9;
+  margin-bottom: 1.25rem;
+  color: #334155;
   white-space: pre-wrap;
 }
 
 /* Post Media Grid */
 .post-images {
   display: grid;
-  gap: 8px;
-  margin-bottom: 16px;
-  border-radius: 12px;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  border-radius: 16px;
   overflow: hidden;
+  border: 1px solid #e2e8f0;
 }
 
 .post-images[data-count="1"] { grid-template-columns: 1fr; }
@@ -372,7 +357,7 @@ h1, p { margin: 0; }
   width: 100%;
   height: 280px;
   object-fit: cover;
-  background-color: var(--secondary-color);
+  background-color: #f1f5f9;
 }
 
 .image-fallback {
@@ -381,51 +366,73 @@ h1, p { margin: 0; }
   justify-content: center;
   position: relative;
 }
+
 .image-fallback::after {
   content: 'Image not found';
   position: absolute;
-  color: var(--text-color);
-  opacity: 0.7;
-  font-size: 14px;
+  color: #94a3b8;
+  font-size: 0.9rem;
 }
 
 /* Post Actions */
 .post-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
-  border-top: 1px solid var(--border-color);
-  padding-top: 16px;
+  gap: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1rem;
 }
 
 .action-btn {
   background: transparent;
   border: none;
-  color: var(--text-color);
-  opacity: 0.8;
+  color: #64748b;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.5rem;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 8px 12px;
-  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.6rem 0.85rem;
+  border-radius: 12px;
   transition: all 0.2s ease;
 }
 
 .action-btn:hover {
-  background-color: var(--hover-bg);
-  color: var(--accent-color);
-  opacity: 1;
+  background-color: #f1f5f9;
+  color: #6366f1;
 }
 
 .action-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+}
+
+/* Active Like Button Styles */
+.action-btn.is-liked {
+  color: #ef4444; 
+}
+
+.action-btn.is-liked .action-icon {
+  color: #ef4444;
+}
+
+.action-btn.is-liked:hover {
+  background-color: #fef2f2;
 }
 
 .share-btn {
   margin-left: auto;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 720px) {
+  .feed-container {
+    padding: 1.5rem 1rem;
+  }
+  
+  .post-card {
+    padding: 1.25rem;
+  }
 }
 </style>
