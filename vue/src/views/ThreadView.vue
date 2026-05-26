@@ -108,24 +108,29 @@ onMounted(async () => {
 
     <div v-if="loading" class="status-card status-loading">
       <Icon icon="mdi:loading" class="spin-icon" />
-      Loading thread...
+      <p>Loading thread...</p>
     </div>
 
-    <div v-else-if="!forum" class="status-card">
-      Unable to load this thread. Please go back and try again.
+    <div v-else-if="!forum" class="status-card error-state">
+      <Icon icon="mdi:alert-circle-outline" class="error-icon" />
+      <p>Unable to load this thread. Please go back and try again.</p>
     </div>
 
     <div v-else>
       <section class="thread-card">
         <div class="thread-card-main">
-          <div>
+          <div class="thread-content">
             <h2>{{ forum.title }}</h2>
             <p class="thread-description">{{ forum.description || 'No description yet.' }}</p>
           </div>
           <div class="thread-vote-buttons">
-            <button type="button" :class="{ active: forum.user_vote === 1 }" @click="voteForum(1)">▲</button>
+            <button type="button" :class="{ active: forum.user_vote === 1 }" @click="voteForum(1)">
+              <Icon icon="mdi:chevron-up" width="28" height="28" />
+            </button>
             <span>{{ forum.votes || 0 }}</span>
-            <button type="button" :class="{ active: forum.user_vote === -1 }" @click="voteForum(-1)">▼</button>
+            <button type="button" :class="{ active: forum.user_vote === -1 }" @click="voteForum(-1)">
+              <Icon icon="mdi:chevron-down" width="28" height="28" />
+            </button>
           </div>
         </div>
       </section>
@@ -136,7 +141,11 @@ onMounted(async () => {
           <span class="reply-count">{{ replies.length }} responses</span>
         </div>
 
-        <div v-if="replies.length === 0" class="status-card">No replies yet — be the first.</div>
+        <div v-if="replies.length === 0" class="status-card empty-state">
+          <Icon icon="mdi:comment-text-outline" class="empty-icon" />
+          <p>No replies yet — be the first to share your thoughts.</p>
+        </div>
+        
         <div v-else class="reply-list">
           <div v-for="reply in replies" :key="reply.id" class="reply-root">
             <ReplyNode :reply="reply" :forumId="forum.id" />
@@ -152,10 +161,14 @@ onMounted(async () => {
           ></textarea>
           <div class="reply-form-actions">
             <button type="button" class="button-primary" @click="createReply" :disabled="isSubmittingReply">
-              {{ isSubmittingReply ? 'Posting...' : 'Post Reply' }}
+              <Icon v-if="!isSubmittingReply" icon="mdi:send" class="btn-icon" />
+              <Icon v-else icon="mdi:loading" class="btn-icon spin-icon" />
+              <span>{{ isSubmittingReply ? 'Posting...' : 'Post Reply' }}</span>
             </button>
           </div>
-          <p v-if="replyError" class="error-text">{{ replyError }}</p>
+          <p v-if="replyError" class="error-text">
+            <Icon icon="mdi:alert-circle" /> {{ replyError }}
+          </p>
         </div>
       </section>
     </div>
@@ -163,226 +176,295 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Base Layout & Typography */
 .thread-page {
-  min-height: calc(100vh - 72px);
-  padding: 24px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  color: #1e293b;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 2rem;
   max-width: 1040px;
   margin: 0 auto;
-  background: #f8fafc;
+  box-sizing: border-box;
 }
 
+/* Header */
 .page-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 22px;
+  justify-content: flex-start;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
   flex-wrap: wrap;
-}
-
-.page-header > div {
-  flex: 1;
 }
 
 .page-header h1 {
   margin: 0;
   font-size: 2rem;
-  color: #111827;
-  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.04em;
+  font-weight: 700;
 }
 
 .page-subtitle {
-  margin: 8px 0 0;
-  color: #64748b;
-  font-size: 0.97rem;
-  font-weight: 500;
+  margin: 0.25rem 0 0;
+  color: #475569;
+  font-size: 1rem;
 }
 
-.button-primary,
-.button-secondary {
-  border: none;
-  border-radius: 14px;
-  padding: 12px 18px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.18s ease;
-}
-
+/* Buttons */
 .button-primary {
-  background: #4f46e5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 16px;
+  border: none;
+  background: #6366f1;
   color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .button-primary:hover:not(:disabled) {
-  background: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(99, 102, 241, 0.18);
 }
 
 .button-primary:disabled {
-  opacity: 0.65;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
 .button-back {
-  background: #eef2ff;
-  color: #1e293b;
+  background: white;
+  color: #64748b;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: 50%;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px rgba(15, 23, 42, 0.02);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .button-back:hover {
-  background: #dbeafe;
+  background: #f8fafc;
+  color: #6366f1;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
 }
 
+.btn-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Common Card Styles */
 .thread-card,
 .reply-form-card,
 .section-header,
 .reply-root {
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 22px;
-  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08);
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
 }
 
+/* Thread Card */
 .thread-card {
-  padding: 24px;
-  margin-bottom: 22px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .thread-card-main {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
+  gap: 2rem;
+}
+
+.thread-content {
+  flex: 1;
 }
 
 .thread-card h2 {
   margin: 0;
-  font-size: 1.45rem;
-  color: #111827;
+  font-size: 1.5rem;
+  color: #0f172a;
+  line-height: 1.3;
 }
 
 .thread-description {
-  margin: 12px 0 0;
-  color: #4b5563;
-  line-height: 1.8;
+  margin: 1rem 0 0;
+  color: #334155;
+  line-height: 1.7;
+  font-size: 1.05rem;
+  white-space: pre-wrap;
 }
 
+/* Voting System */
 .thread-vote-buttons {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  min-width: 88px;
+  gap: 0.5rem;
+  background: #f8fafc;
+  padding: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
 }
 
 .thread-vote-buttons button {
-  width: 44px;
-  height: 44px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 1px solid #dbeafe;
-  background: white;
-  color: #111827;
-  font-size: 1rem;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.2s ease;
 }
 
-.thread-vote-buttons button.active,
 .thread-vote-buttons button:hover {
-  background: #4f46e5;
+  background: #e0e7ff;
+  color: #6366f1;
+}
+
+.thread-vote-buttons button.active {
+  background: #6366f1;
   color: white;
-  border-color: transparent;
-  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
 }
 
 .thread-vote-buttons span {
   font-weight: 700;
-  color: #111827;
+  color: #0f172a;
+  font-size: 1.1rem;
 }
 
+/* Replies Section */
 .replies-section {
   display: grid;
-  gap: 18px;
+  gap: 1.5rem;
 }
 
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 18px 24px;
+  padding: 1.25rem 1.5rem;
 }
 
 .section-header h3 {
   margin: 0;
-  font-size: 1.15rem;
-  color: #111827;
+  font-size: 1.25rem;
+  color: #0f172a;
 }
 
 .reply-count {
-  color: #6b7280;
-  font-size: 0.95rem;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .reply-list {
   display: grid;
-  gap: 16px;
+  gap: 1rem;
 }
 
+/* Reply Composer */
 .reply-form-card {
-  padding: 22px;
+  padding: 2rem;
 }
 
 .reply-form-card h4 {
-  margin: 0 0 14px;
-  color: #111827;
+  margin: 0 0 1rem;
+  color: #0f172a;
+  font-size: 1.1rem;
 }
 
 .reply-form-card textarea {
   width: 100%;
-  min-height: 140px;
+  min-height: 120px;
   border-radius: 18px;
-  border: 1px solid #dbeafe;
-  padding: 18px;
-  font-size: 0.97rem;
-  color: #111827;
+  border: 1px solid #cbd5e1;
+  padding: 1rem;
+  font-size: 1rem;
+  color: #0f172a;
+  font-family: inherit;
   resize: vertical;
-  background: #f8fbff;
+  background: white;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.reply-form-card textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .reply-form-actions {
-  margin-top: 16px;
+  margin-top: 1rem;
   display: flex;
   justify-content: flex-end;
 }
 
 .error-text {
-  margin-top: 12px;
-  color: #dc2626;
+  margin-top: 1rem;
+  color: #ef4444;
   font-size: 0.95rem;
-}
-
-.status-card {
-  padding: 18px;
-  border-radius: 18px;
-  background: #f8fbff;
-  color: #4b5563;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
+  gap: 0.5rem;
 }
 
-.status-loading .spin-icon {
+/* Status Cards (Loading, Empty, Error) */
+.status-card {
+  padding: 3rem;
+  background: white;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+  text-align: center;
+  color: #475569;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.05rem;
+}
+
+.spin-icon {
+  font-size: 2.5rem;
+  color: #6366f1;
   animation: spin 1s linear infinite;
 }
 
+.empty-icon {
+  font-size: 3rem;
+  color: #94a3b8;
+}
+
+.error-icon {
+  font-size: 3rem;
+  color: #ef4444;
+}
+
+/* Highlight Animation for scroll-to-reply */
 .highlight {
-  animation: highlightFlash 2s ease-in-out;
+  animation: highlightFlash 2.5s ease-in-out;
 }
 
 @keyframes spin {
@@ -390,18 +472,33 @@ onMounted(async () => {
 }
 
 @keyframes highlightFlash {
-  0% { background: rgba(99,102,241,0.12); border-radius: 12px; }
-  50% { background: rgba(99,102,241,0.18); }
-  100% { background: transparent; }
+  0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); border-color: #e2e8f0; }
+  15% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2); border-color: #6366f1; background: #f5f8ff; }
+  85% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2); border-color: #6366f1; background: #f5f8ff; }
+  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); border-color: #e2e8f0; background: white; }
 }
 
+/* Mobile Adjustments */
 @media (max-width: 720px) {
-  .thread-card-main {
-    flex-direction: column;
+  .thread-page {
+    padding: 1.5rem 1rem;
   }
 
-  .page-header {
-    align-items: flex-start;
+  .thread-card-main {
+    flex-direction: column-reverse;
+    gap: 1.5rem;
+  }
+
+  .thread-vote-buttons {
+    flex-direction: row;
+    width: 100%;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+  }
+
+  .thread-card, 
+  .reply-form-card {
+    padding: 1.5rem;
   }
 }
 </style>

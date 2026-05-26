@@ -1,9 +1,11 @@
 @import './base.css';
 
-/* #app {
-  max-width: 120vh;
-  margin: 0 auto;
-} */
+body, html, #app {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #f8fafc; /* Matches the lightest part of your gradient */
+}
 
 /* a,
 .green {

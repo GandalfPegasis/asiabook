@@ -56,7 +56,10 @@ CREATE TABLE forum(
     title varchar(100),
     post_by int,
     description text,
-    FOREIGN KEY (post_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
+    club_id int DEFAULT NULL,
+    votes int NOT NULL DEFAULT 0,
+    FOREIGN KEY (post_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade,
+    FOREIGN KEY (club_id) REFERENCES clubs(id) ON UPDATE cascade ON DELETE cascade
 );
 
 
@@ -67,8 +70,25 @@ CREATE TABLE forum_reply(
     post_by int,
     reply_of int,
     content text,
+    votes int NOT NULL DEFAULT 0,
     FOREIGN KEY (forum_id) REFERENCES forum(id) ON UPDATE cascade ON DELETE cascade,
     FOREIGN KEY (post_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
+);
+
+CREATE TABLE forum_reply_votes (
+    id int NOT NULL,
+    reply_id int NOT NULL,
+    user_id int NOT NULL,
+    vote tinyint NOT NULL,
+    FOREIGN KEY (reply_id) REFERENCES forum_reply(id) ON UPDATE cascade ON DELETE cascade,
+    FOREIGN KEY (user_id) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
+);
+
+CREATE TABLE forum_votes (
+    id int NOT NULL,
+    forum_id int NOT NULL,
+    user_id int NOT NULL,
+    vote tinyint NOT NULL
 );
 
 INSERT INTO forum_reply(forum_id, post_by, reply_of, content) VALUES (1, 2, null, 'i usually go to the back of the school to meet my regular femboy called joel');
