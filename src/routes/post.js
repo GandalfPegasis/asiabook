@@ -11,19 +11,32 @@ const {
 } = require("../dataaccess/postDAO");
 
 // GET /posts - Feed
+
 router.get("/", async (req, res) => {
     try {
-        const rows = await getPosts();
+        const userId = req.user ? req.user.id : null;
 
-        const formattedRows = rows.map((row) => ({
-            ...row,
-            images:
-                typeof row.images === "string"
-                    ? JSON.parse(row.images)
-                    : row.images,
-        }));
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const offset = (page - 1) * limit;
 
-        res.json(formattedRows);
+        const rows = await getPosts(limit, offset, userId);
+        const formattedPosts = rows.map((post) => {
+            // Create a copy of the post object
+            const formattedPost = { ...post };
+
+            // Check if the images string exists (not null)
+            if (formattedPost.images) {
+                // Split the comma-separated string into a real JavaScript array
+                formattedPost.images = formattedPost.images.split(",");
+            } else {
+                // If there are no images, return an empty array
+                formattedPost.images = [];
+            }
+
+            return formattedPost;
+        });
+        res.status(200).json(formattedPosts);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Failed to fetch the feed" });

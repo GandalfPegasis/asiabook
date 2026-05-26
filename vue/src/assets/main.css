@@ -4,7 +4,7 @@ body, html, #app {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background-color: #f8fafc; /* Matches the lightest part of your gradient */
+  background-color: #f8fafc;
 }
 
 /* a,

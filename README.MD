@@ -7,3 +7,7 @@
 5. go back to /services/profile convert data to defined structure (e.g object, arrays)
 6. /services/profile render the data from service
 7. mari 🗿
+
+mark diggerburg
+
+post nnti di tag trs nnti feeds nya yg sesuaiin tags

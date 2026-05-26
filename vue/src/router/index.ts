@@ -30,6 +30,13 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/profile/edit',
+      name: 'profile-edit',
+      component: () => import('../views/EditProfileView.vue'),
+      props: true,
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/friends',
       name: 'friends',
       component: () => import('../views/FriendsView.vue'),

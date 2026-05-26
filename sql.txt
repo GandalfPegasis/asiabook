@@ -32,8 +32,16 @@ CREATE TABLE posts(
     posted_by int,
     caption text,
     likes int default 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
     FOREIGN KEY (posted_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
 );
+
+CREATE TABLE post_tags(
+    id int primary key auto_increment,
+    post_id int,
+    tag_id
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON UPDATE cascade ON DELETE cascade
+)
 
 create table comment_post(
     id int primary key auto_increment,
@@ -184,3 +192,41 @@ INSERT INTO post_picture (post_id, location) VALUES
 (11, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fcdn.pixabay.com%2Fphoto%2F2024%2F05%2F26%2F10%2F15%2Fbird-8788491_1280.jpg&imgrefurl=https%3A%2F%2Fpixabay.com%2Fphotos%2Fbird-blue-clouds-weather-pen-8788491%2F&docid=UHcUa7a-6-cYRM&tbnid=90TpIHBM_bySlM&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIGRAB..i&w=1280&h=853&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQIGRAB'),
 (12, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fwww.maxphoto.co.uk%2Fmedia%2Fmagefan_blog%2Fhow_to_take_a_good_photo.jpg&imgrefurl=https%3A%2F%2Fwww.maxphoto.co.uk%2Finspire%2Fhow-to-take-a-good-photo&docid=EQfsqjsO5JgjOM&tbnid=n88tVoSezV_6WM&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQISRAB..i&w=947&h=567&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQISRAB'),
 (13, 'https://www.google.com/imgres?q=photo&imgurl=https%3A%2F%2Fwww.maxphoto.co.uk%2Fmedia%2Fmagefan_blog%2Fhow_to_take_a_good_photo.jpg&imgrefurl=https%3A%2F%2Fwww.maxphoto.co.uk%2Finspire%2Fhow-to-take-a-good-photo&docid=EQfsqjsO5JgjOM&tbnid=n88tVoSezV_6WM&vet=12ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQISRAB..i&w=947&h=567&hcb=2&ved=2ahUKEwiC493Ig5CUAxWucvUHHecVFEsQnPAOegQISRAB+');
+
+SELECT 
+    p.id AS post_id,
+    p.caption,
+    prof.name AS author_name,
+    p.likes,
+    COUNT(cp.id) AS comment_count,
+    p.created_at,
+    
+    -- FACTOR 1: Engagement (1 point per like, 3 points per comment)
+    (p.likes + (COUNT(cp.id) * 3)) AS engagement_score,
+
+    -- FACTOR 2: Affinity (If the post author is a friend, give a massive 50 point bonus)
+    IF(f.id IS NOT NULL, 50, 0) AS friend_bonus,
+
+    -- FACTOR 3: Time Decay (Hours since the post was created)
+    TIMESTAMPDIFF(HOUR, p.created_at, NOW()) AS hours_old,
+
+    -- THE FINAL SCORE FORMULA
+    (
+        (p.likes + (COUNT(cp.id) * 3) + IF(f.id IS NOT NULL, 50, 0)) 
+        / 
+        POWER(TIMESTAMPDIFF(HOUR, p.created_at, NOW()) + 2, 1.5)
+    ) AS feed_score
+
+FROM posts p
+JOIN profile prof ON p.posted_by = prof.id
+
+-- Left join to count comments
+LEFT JOIN post_comments cp ON p.id = cp.post_id
+
+-- Left join to check if the author is friends with the current user (User ID 1)
+LEFT JOIN friends f ON 
+    (f.profile_id_1 = 1 AND f.profile_id_2 = p.posted_by) OR 
+    (f.profile_id_1 = p.posted_by AND f.profile_id_2 = 1)
+
+GROUP BY p.id, prof.name, p.created_at, f.id
+ORDER BY feed_score DESC;

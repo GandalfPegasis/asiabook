@@ -1,32 +1,61 @@
 const router = require("express").Router();
 
 const { getPostByProfileId } = require("../dataaccess/postDAO");
-const { getProfileById } = require("../dataaccess/profileDAO");
+const { getProfileById, updateProfile } = require("../dataaccess/profileDAO");
 const {
     getFriendsByProfileId,
     getRequestCount,
 } = require("../dataaccess/friendDAO");
 const { authMiddleware } = require("../middleware/authMiddleware");
+const { getProfile } = require("../controllers/profile");
 
 // Apply auth middleware to all profile routes
 router.use(authMiddleware);
 
-router.get("/", async (req, res) => {
-    const PROFILE_ID = req.user.id; // Get from authenticated user token
+router.get("/", getProfile);
+
+const balls = (data) => {
+    if (!data.birth_date) data.birth_date = null;
+    if (!data.nationality) data.nationality = null;
+    if (!data.role) data.role = null;
+    if (!data.department) data.department = null;
+    if (!data.language) data.language = null;
+    if (!data.contact_info) data.contact_info = null;
+
+    return data;
+};
+
+router.put("/", async (req, res) => {
+    const userId = req.user.id;
+
+    const {
+        name,
+        email,
+        birth_date,
+        nationality,
+        role,
+        department,
+        language,
+        contact_info,
+    } = balls(req.body);
+
+    if (!name || !email) {
+        return res.status(400).json({ error: "Name and email are required" });
+    }
 
     try {
-        const [profileResults] = await getProfileById(PROFILE_ID);
+        const result = await updateProfile(userId, {
+            name,
+            email,
+            birth_date,
+            nationality,
+            role,
+            department,
+            language,
+            contact_info,
+        });
 
-        const [postResults] = await getPostByProfileId(PROFILE_ID);
-
-        const user = profileResults[0];
-
-        const data = {
-            ...user,
-            posts: postResults,
-        };
-
-        res.json(data);
+        res.json(result);
     } catch (err) {
         console.error("Database query error:", err);
         res.status(500).send("<h1>Internal Server Error</h1>");

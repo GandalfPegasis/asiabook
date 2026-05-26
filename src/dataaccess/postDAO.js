@@ -16,31 +16,77 @@ const getPostByProfileId = async (profileId) => {
     }
 };
 
-const getPosts = async () => {
+const getPosts = async (limit, offset, userId) => {
     try {
-        const [result] = await db.query(`
-            SELECT 
-                p.id, 
-                p.caption, 
-                IFNULL(p.likes, 0) AS likes,
-                prof.name AS author, 
-                prof.role,
-                (
-                    SELECT IFNULL(JSON_ARRAYAGG(location), JSON_ARRAY())
-                    FROM post_picture 
-                    WHERE post_id = p.id
-                ) AS images,
-                (
-                    SELECT COUNT(*) 
-                    FROM post_comments pc 
-                    WHERE pc.post_id = p.id
-                ) AS comments
-            FROM posts p
-            JOIN profile prof ON p.posted_by = prof.id
-            LEFT JOIN post_picture pp ON pp.post_id = p.id
-            GROUP BY p.id, prof.name, prof.role
-            ORDER BY p.id DESC;
-        `);
+        let sql = "";
+        let queryParams = [];
+
+        if (!userId) {
+            sql = `
+                SELECT 
+                    p.id AS post_id,
+                    p.caption,
+                    prof.name AS author_name,
+                    p.likes,
+                    GROUP_CONCAT(DISTINCT pp.location SEPARATOR ',') AS images,
+                    COUNT(DISTINCT cp.id) AS comment_count,
+                    p.created_at,
+                    
+                    -- Pure Trending Score (No Friend Bonus)
+                    (
+                        (p.likes + (COUNT(DISTINCT cp.id) * 3)) 
+                        / 
+                        POWER(TIMESTAMPDIFF(HOUR, p.created_at, NOW()) + 2, 1.5)
+                    ) AS feed_score
+
+                FROM posts p
+                JOIN profile prof ON p.posted_by = prof.id
+                LEFT JOIN post_picture pp ON p.id = pp.post_id
+                LEFT JOIN post_comments cp ON p.id = cp.post_id
+                
+                GROUP BY p.id, p.caption, prof.name, p.likes, p.created_at
+                ORDER BY feed_score DESC
+                LIMIT ? OFFSET ?;
+            `;
+            // Only pass limit and offset
+            queryParams = [limit, offset];
+        } else {
+            sql = `
+                SELECT 
+                    p.id AS post_id,
+                    p.caption,
+                    prof.name AS author_name,
+                    p.likes,
+                    GROUP_CONCAT(DISTINCT pp.location SEPARATOR ',') AS images,
+                    COUNT(DISTINCT cp.id) AS comment_count,
+                    p.created_at,
+
+                    -- Score INCLUDING the 50-point Friend Bonus
+                    (
+                        (p.likes + (COUNT(DISTINCT cp.id) * 3) + IF(f.id IS NOT NULL, 50, 0)) 
+                        / 
+                        POWER(TIMESTAMPDIFF(HOUR, p.created_at, NOW()) + 2, 1.5)
+                    ) AS feed_score
+
+                FROM posts p
+                JOIN profile prof ON p.posted_by = prof.id
+                LEFT JOIN post_picture pp ON p.id = pp.post_id
+                LEFT JOIN post_comments cp ON p.id = cp.post_id
+                
+                -- Join friends table using the logged-in User ID
+                LEFT JOIN friends f ON 
+                    (f.profile_id_1 = ? AND f.profile_id_2 = p.posted_by) OR 
+                    (f.profile_id_1 = p.posted_by AND f.profile_id_2 = ?)
+
+                GROUP BY p.id, p.caption, prof.name, p.likes, p.created_at, f.id
+                ORDER BY feed_score DESC
+                LIMIT ? OFFSET ?;
+            `;
+            // Pass the userId twice (for the OR condition), then limit and offset
+            queryParams = [userId, userId, limit, offset];
+        }
+
+        const [result] = await db.query(sql, queryParams);
 
         return result;
     } catch (err) {
