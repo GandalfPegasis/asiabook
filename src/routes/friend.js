@@ -16,10 +16,10 @@ const { authMiddleware } = require("../middleware/authMiddleware");
 router.use(authMiddleware);
 
 router.get("/", async (req, res) => {
-    const CURRENT_USER_ID = req.user.id;
+    const userId = req.user.id;
 
     try {
-        const [friends] = await getFriendsByProfileId(CURRENT_USER_ID);
+        const [friends] = await getFriendsByProfileId(userId);
 
         const data = [...friends];
 
@@ -31,11 +31,10 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/request", async (req, res) => {
-    const CURRENT_USER_ID = req.user.id;
+    const userId = req.user.id;
 
     try {
-        const [friendRequest] =
-            await getFriendRequestByProfileId(CURRENT_USER_ID);
+        const [friendRequest] = await getFriendRequestByProfileId(userId);
 
         const data = [...friendRequest];
 
@@ -48,15 +47,17 @@ router.get("/request", async (req, res) => {
 
 // Search users
 router.get("/search", async (req, res) => {
-    const CURRENT_USER_ID = req.user.id;
+    const userId = req.user.id;
     const { q } = req.query;
 
     if (!q || q.trim().length < 2) {
-        return res.status(400).json({ error: "Search query must be at least 2 characters" });
+        return res
+            .status(400)
+            .json({ error: "Search query must be at least 2 characters" });
     }
 
     try {
-        const [users] = await searchUsers(q.trim(), CURRENT_USER_ID);
+        const [users] = await searchUsers(q.trim(), userId);
         res.json(users);
     } catch (err) {
         console.error("Database error:", err);
@@ -66,7 +67,7 @@ router.get("/search", async (req, res) => {
 
 // Accept friend request
 router.post("/request/:id/accept", async (req, res) => {
-    const CURRENT_USER_ID = 1;
+    const userId = req.user.id;
     const requestId = parseInt(req.params.id);
 
     if (isNaN(requestId)) {
@@ -74,7 +75,8 @@ router.post("/request/:id/accept", async (req, res) => {
     }
 
     try {
-        await acceptFriendRequest(requestId, CURRENT_USER_ID);
+        await acceptFriendRequest(requestId, userId);
+
         res.json({ success: true, message: "Friend request accepted" });
     } catch (err) {
         console.error("Database error:", err);
@@ -84,7 +86,7 @@ router.post("/request/:id/accept", async (req, res) => {
 
 // Decline friend request
 router.post("/request/:id/decline", async (req, res) => {
-    const CURRENT_USER_ID = 1;
+    const userId = req.user.id;
     const requestId = parseInt(req.params.id);
 
     if (isNaN(requestId)) {
@@ -92,7 +94,7 @@ router.post("/request/:id/decline", async (req, res) => {
     }
 
     try {
-        await declineFriendRequest(requestId, CURRENT_USER_ID);
+        await declineFriendRequest(requestId, userId);
         res.json({ success: true, message: "Friend request declined" });
     } catch (err) {
         console.error("Database error:", err);
@@ -102,10 +104,10 @@ router.post("/request/:id/decline", async (req, res) => {
 
 // Friend suggestions
 router.get("/suggestions", async (req, res) => {
-    const CURRENT_USER_ID = 1;
+    const userId = req.user.id;
 
     try {
-        const [suggestions] = await getFriendSuggestions(CURRENT_USER_ID);
+        const [suggestions] = await getFriendSuggestions(userId);
         res.json(suggestions);
     } catch (err) {
         console.error("Database error:", err);
@@ -115,7 +117,8 @@ router.get("/suggestions", async (req, res) => {
 
 // Send friend request
 router.post("/request", async (req, res) => {
-    const CURRENT_USER_ID = 1;
+    const userId = req.user.id;
+
     const { receiverId } = req.body;
 
     if (!receiverId || isNaN(parseInt(receiverId))) {
@@ -123,7 +126,7 @@ router.post("/request", async (req, res) => {
     }
 
     try {
-        await sendFriendRequest(CURRENT_USER_ID, parseInt(receiverId));
+        await sendFriendRequest(userId, parseInt(receiverId));
         res.json({ success: true, message: "Friend request sent" });
     } catch (err) {
         console.error("Database error:", err);

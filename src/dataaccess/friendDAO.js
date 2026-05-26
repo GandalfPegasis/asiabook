@@ -75,7 +75,7 @@ const acceptFriendRequest = async (requestId, userId) => {
         // First get the request details
         const [request] = await db.query(
             `SELECT requested_by, requested_to FROM friend_request WHERE id = ? AND requested_to = ?`,
-            [requestId, userId]
+            [requestId, userId],
         );
 
         if (request.length === 0) {
@@ -87,14 +87,11 @@ const acceptFriendRequest = async (requestId, userId) => {
         // Add to friends table
         await db.query(
             `INSERT INTO friends (profile_id_1, profile_id_2) VALUES (?, ?)`,
-            [requested_by, requested_to]
+            [requested_by, requested_to],
         );
 
         // Remove from friend_request
-        await db.query(
-            `DELETE FROM friend_request WHERE id = ?`,
-            [requestId]
-        );
+        await db.query(`DELETE FROM friend_request WHERE id = ?`, [requestId]);
 
         return { success: true };
     } catch (error) {
@@ -108,7 +105,7 @@ const declineFriendRequest = async (requestId, userId) => {
     try {
         const result = await db.query(
             `DELETE FROM friend_request WHERE id = ? AND requested_to = ?`,
-            [requestId, userId]
+            [requestId, userId],
         );
 
         if (result[0].affectedRows === 0) {
@@ -141,7 +138,7 @@ const getFriendSuggestions = async (userId) => {
              )
              ORDER BY RAND()
              LIMIT 10;`,
-            [userId, userId, userId, userId, userId]
+            [userId, userId, userId, userId, userId],
         );
 
         return suggestions;
@@ -159,16 +156,27 @@ const sendFriendRequest = async (senderId, receiverId) => {
             `SELECT id FROM friends WHERE (profile_id_1 = ? AND profile_id_2 = ?) OR (profile_id_1 = ? AND profile_id_2 = ?)
              UNION
              SELECT id FROM friend_request WHERE (requested_by = ? AND requested_to = ?) OR (requested_by = ? AND requested_to = ?)`,
-            [senderId, receiverId, receiverId, senderId, senderId, receiverId, receiverId, senderId]
+            [
+                senderId,
+                receiverId,
+                receiverId,
+                senderId,
+                senderId,
+                receiverId,
+                receiverId,
+                senderId,
+            ],
         );
 
         if (existing[0].length > 0) {
-            throw new Error("Friend request already exists or users are already friends");
+            throw new Error(
+                "Friend request already exists or users are already friends",
+            );
         }
 
         await db.query(
             `INSERT INTO friend_request (requested_by, requested_to) VALUES (?, ?)`,
-            [senderId, receiverId]
+            [senderId, receiverId],
         );
 
         return { success: true };
