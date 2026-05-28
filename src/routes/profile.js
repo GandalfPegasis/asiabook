@@ -62,6 +62,28 @@ router.put("/", async (req, res) => {
     }
 });
 
+router.get("/friends", async (req, res) => {
+    const CURRENT_USER_ID = req.user.id;
+
+    try {
+        const [friends] = await getFriendsByProfileId(CURRENT_USER_ID);
+        const [requestCount] = await getRequestCount(CURRENT_USER_ID);
+
+        console.log("Fetched friends:", friends);
+
+        const data = {
+            friends,
+            requestCount: requestCount["friend_request"],
+        };
+
+        console.log("Friends Page Data:", data);
+
+        res.json(data);
+    } catch (err) {
+        console.error("Database error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
 // NEW: Get profile by ID
 router.get("/:id", async (req, res) => {
     const PROFILE_ID = parseInt(req.params.id);
@@ -109,25 +131,6 @@ router.get("/:id/friends", async (req, res) => {
             friends,
             requestCount: requestCount["friend_request"],
         };
-        res.json(data);
-    } catch (err) {
-        console.error("Database error:", err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-router.get("/friends", async (req, res) => {
-    const CURRENT_USER_ID = req.user.id;
-
-    try {
-        const [friends] = await getFriendsByProfileId(CURRENT_USER_ID);
-        const [requestCount] = await getRequestCount(CURRENT_USER_ID);
-
-        const data = {
-            friends,
-            requestCount: requestCount["friend_request"],
-        };
-        console.log("Friends Page Data:", data);
         res.json(data);
     } catch (err) {
         console.error("Database error:", err);
