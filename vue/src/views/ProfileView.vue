@@ -98,24 +98,20 @@
 
         <!-- Right Column Structure -->
         <div class="right-column">
-          
-          <!-- Create Post Form: Only visible if viewing own profile (profileId is undefined) -->
-          <CreatePostForm v-if="!profileId" @post-created="fetchProfile" />
+            <section class="posts-section card-box">
+                <h2>{{ profileId ? `${users.name.split(' ')[0]}'s Posts` : 'My Posts' }}</h2>
+                
+                <CreatePostForm v-if="!profileId" @post-created="fetchProfile" />
 
-          <section class="posts-section card-box">
-            <h2>{{ profileId ? `${users.name.split(' ')[0]}'s Posts` : 'My Posts' }}</h2>
-            
-            <!-- Reusable Post List Component -->
-            <div v-if="formattedProfilePosts.length > 0">
-              <ListPost :posts="formattedProfilePosts" @like="handleLike" />
-            </div>
-            
-            <div v-else class="empty-posts">
-              <!-- Using the recommended 'no data' icon -->
-              <Icon icon="mdi:text-box-remove-outline" class="empty-icon" />
-              <p>No posts yet.</p>
-            </div>
-          </section>
+                <div v-if="formattedProfilePosts.length > 0">
+                    <ListPost :posts="formattedProfilePosts" @like="handleLike" />
+                </div>
+                
+                <div v-else class="empty-posts">
+                    <Icon icon="mdi:text-box-remove-outline" class="empty-icon" />
+                    <p>No posts yet.</p>
+                </div>
+            </section>
 
         </div>
 
@@ -583,21 +579,55 @@ h2 {
    8. Posts Section
 ========================================= */
 .posts-section {
-  padding: 2rem;
-  /* Removed border and background from the posts themselves, 
-     as ListPost already handles its own card styling */
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-.posts-section h2 {
-  background: white;
   padding: 1.5rem;
+  background: white;
   border-radius: 24px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Reset the H2 so it's just a header, not a floating card */
+.posts-section h2 {
+  background: transparent;
+  padding: 0 0 1rem 0;
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Flatten the Create Post component so it doesn't look like a box in a box */
+/* Flatten the Create Post component */
+.posts-section :deep(.create-post-card) {
+  border: none;
+  box-shadow: none;
+  padding: 1.5rem 1rem; /* ADDED SIDE PADDING */
+  background: transparent;
+  border-bottom: 1px solid #f1f5f9;
+  border-radius: 0;
+}
+
+/* Flatten the Post List cards */
+.posts-section :deep(.posts-wrapper) {
+  gap: 0; 
+}
+
+.posts-section :deep(.post-card) {
+  border: none;
+  box-shadow: none;
+  padding: 1.5rem 1rem; /* ADDED SIDE PADDING */
+  background: transparent;
+  border-bottom: 1px solid #f1f5f9;
+  border-radius: 0;
+}
+
+/* Remove the border from the very last post */
+.posts-section :deep(.post-card:last-child) {
+  border-bottom: none;
 }
 
 .empty-posts {
@@ -605,12 +635,9 @@ h2 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4rem 0;
+  padding: 3rem 0;
   color: #94a3b8;
   gap: 1rem;
-  background: white;
-  border-radius: 24px;
-  border: 1px solid #e2e8f0;
 }
 
 .empty-posts .empty-icon {
@@ -641,7 +668,7 @@ h2 {
   }
 
   .posts-section {
-    padding: 0;
+    padding: 1rem; /* Restore padding on mobile */
   }
 }
 </style>
