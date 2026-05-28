@@ -69,14 +69,10 @@ router.get("/friends", async (req, res) => {
         const [friends] = await getFriendsByProfileId(CURRENT_USER_ID);
         const [requestCount] = await getRequestCount(CURRENT_USER_ID);
 
-        console.log("Fetched friends:", friends);
-
         const data = {
             friends,
             requestCount: requestCount["friend_request"],
         };
-
-        console.log("Friends Page Data:", data);
 
         res.json(data);
     } catch (err) {

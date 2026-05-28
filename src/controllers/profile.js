@@ -7,7 +7,7 @@ const getProfile = async (req, res) => {
     try {
         const [profileResults] = await getProfileById(PROFILE_ID);
 
-        const [postResults] = await getPostByProfileId(PROFILE_ID);
+        const postResults = await getPostByProfileId(PROFILE_ID);
 
         const user = profileResults[0];
 

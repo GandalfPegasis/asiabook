@@ -52,6 +52,7 @@ router.post("/", authMiddleware, async (req, res) => {
 
     try {
         const postId = await createPost(posted_by, caption);
+
         res.status(201).json({ message: "Post created", id: postId });
     } catch (error) {
         console.error(error);

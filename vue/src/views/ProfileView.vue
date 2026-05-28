@@ -44,19 +44,23 @@
             <div class="details-grid">
               <div class="detail-item">
                 <span class="label">Nationality</span>
-                <span class="value"> {{ users.nationality }}</span>
+                <span v-if="users.nationality" class="value"> {{ users.nationality }}</span>
+                <Icon v-else icon="mdi:ghost-outline" class="value"/>
               </div>
               <div class="detail-item">
                 <span class="label">Language</span>
-                <span class="value"> {{ users.language }}</span>
+                <span v-if="users.language" class="value"> {{ users.language }}</span>
+                <Icon v-else icon="mdi:ghost-outline" class="value"/>
               </div>
               <div class="detail-item">
                 <span class="label">Birth Date</span>
-                <span class="value"> {{ formatDate(users.birth_date) }}</span>
+                <span v-if="users.birth_date" class="value"> {{ formatDate(users.birth_date) }}</span>
+                <Icon v-else icon="mdi:ghost-outline" class="value"/>
               </div>
               <div class="detail-item">
                 <span class="label">Contact</span>
-                <span class="value"> {{ users.contact_info }}</span>
+                <span v-if="users.contact_info" class="value"> {{ users.contact_info }}</span>
+                <Icon v-else icon="mdi:ghost-outline" class="value"/>
               </div>
             </div>
           </div>
@@ -92,32 +96,28 @@
           </div>
         </aside>
 
-        <section class="posts-section card-box">
-          <h2>My Posts</h2>
+        <!-- Right Column Structure -->
+        <div class="right-column">
           
-          <div v-if="users.posts && users.posts.length > 0" class="posts-list">
-            <PostItem v-for="post in users.posts" :key="post.post_id">
-              <template #icon>
-                <div class="post-avatar-mini">{{ users.name.charAt(0).toUpperCase() }}</div>
-              </template>
-              
-              <template #heading>
-                <span class="post-caption">{{ post.caption }}</span>
-              </template>
-              
-              <template #images>
-                <div class="post-image-grid" v-if="post.location">
-                  <img :src="'http://localhost:3000/img/' + post.location" alt="Post Image">
-                </div>
-              </template>
-            </PostItem>
-          </div>
-          
-          <div v-else class="empty-posts">
-            <Icon icon="mdi:image-outline" class="empty-icon" />
-            <p>No posts yet.</p>
-          </div>
-        </section>
+          <!-- Create Post Form: Only visible if viewing own profile (profileId is undefined) -->
+          <CreatePostForm v-if="!profileId" @post-created="fetchProfile" />
+
+          <section class="posts-section card-box">
+            <h2>{{ profileId ? `${users.name.split(' ')[0]}'s Posts` : 'My Posts' }}</h2>
+            
+            <!-- Reusable Post List Component -->
+            <div v-if="formattedProfilePosts.length > 0">
+              <ListPost :posts="formattedProfilePosts" @like="handleLike" />
+            </div>
+            
+            <div v-else class="empty-posts">
+              <!-- Using the recommended 'no data' icon -->
+              <Icon icon="mdi:text-box-remove-outline" class="empty-icon" />
+              <p>No posts yet.</p>
+            </div>
+          </section>
+
+        </div>
 
       </div>
     </div>
@@ -125,16 +125,20 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router'; // Add useRouter
+import { onMounted, ref, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router'; 
 import { Icon } from '@iconify/vue';
 import { apiClient } from '@/api/api';
-import PostItem from '../components/PostItem.vue';
+import CreatePostForm from '../components/CreatePostForm.vue';
+import ListPost from '../components/ListPost.vue'; 
 
 interface Post {
   post_id: number;
   location: string | null;
   caption: string;
+  created_at?: string;
+  likes?: number;
+  comment_count?: number;
 }
 
 interface User {
@@ -159,7 +163,7 @@ interface FriendData {
 }
 
 const route = useRoute();
-const router = useRouter(); // Initialize router
+const router = useRouter(); 
 const profileId = route.params.id as string | undefined;
 
 const users = ref<User | null>(null);
@@ -178,9 +182,7 @@ const formatDate = (dateString: string | undefined) => {
   return dateString.split('T')[0]; 
 };
 
-// Routing function for the Edit Button
 const goToEditProfile = () => {
-  // Replace 'edit-profile' with the exact name you used in your Vue Router setup
   router.push({ name: 'profile-edit' }); 
 };
 
@@ -202,15 +204,51 @@ const fetchFriends = async () => {
   isLoadingFriends.value = true;
   friendsError.value = null;
   try {
-    const endpoint = `/profile/friends`;
+    const endpoint = profileId ? `/profile/${profileId}/friends` : `/profile/friends`;
     const response = await apiClient.get<FriendData>(endpoint);
-      console.log(response);
     friends.value = response.data;
   } catch (err) {
     console.error(err);
     friendsError.value = 'Failed to load friends list.';
   } finally {
     isLoadingFriends.value = false;
+  }
+};
+
+// Map the profile posts to match the schema expected by ListPost.vue
+const formattedProfilePosts = computed(() => {
+  if (!users.value || !users.value.posts) return [];
+  
+  return users.value.posts.map(post => ({
+    id: post.post_id,
+    author: users.value!.name,
+    role: users.value!.role || 'Member',
+    caption: post.caption,
+    images: post.location ? [`http://localhost:3000/img/${post.location}`] : [], // Wrap location in array
+    timeAgo: formatDate(post.created_at) || 'Recently',
+    likes: post.likes || 0,
+    comments: post.comment_count || 0,
+    hasLiked: false,
+    isLiking: false
+  }));
+});
+
+// Handle likes triggered from the ListPost component
+const handleLike = async (postId: number) => {
+  try {
+    // Basic implementation for like logic on profile page
+    // Note: Since 'formattedProfilePosts' is computed, you normally want to mutate the raw 'users.value.posts'
+    // For simplicity, we just trigger the API. To see immediate UI changes, 
+    // you might want to re-fetch the profile or find the post in users.value.posts and increment.
+    await apiClient.post(`/posts/${postId}/like`);
+    
+    // Quick optimistic update on the source data
+    const targetPost = users.value?.posts.find(p => p.post_id === postId);
+    if (targetPost) {
+      targetPost.likes = (targetPost.likes || 0) + 1;
+    }
+  } catch (error) {
+    console.error("Failed to like post", error);
   }
 };
 
@@ -414,6 +452,12 @@ h2 {
   align-self: start;
 }
 
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 /* =========================================
    6. Details Section
 ========================================= */
@@ -540,47 +584,20 @@ h2 {
 ========================================= */
 .posts-section {
   padding: 2rem;
+  /* Removed border and background from the posts themselves, 
+     as ListPost already handles its own card styling */
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
-.posts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.post-avatar-mini {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.post-caption {
-  color: #334155;
-  font-size: 1rem;
-  line-height: 1.6;
-}
-
-.post-image-grid {
-  display: grid;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  border-radius: 16px;
-  overflow: hidden;
+.posts-section h2 {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 24px;
   border: 1px solid #e2e8f0;
-}
-
-.post-image-grid img {
-  width: 100%;
-  height: auto;
-  max-height: 400px;
-  object-fit: cover;
-  background-color: #f1f5f9;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+  margin-bottom: 1.5rem;
 }
 
 .empty-posts {
@@ -591,6 +608,9 @@ h2 {
   padding: 4rem 0;
   color: #94a3b8;
   gap: 1rem;
+  background: white;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
 }
 
 .empty-posts .empty-icon {
@@ -621,7 +641,7 @@ h2 {
   }
 
   .posts-section {
-    padding: 1.5rem;
+    padding: 0;
   }
 }
 </style>
