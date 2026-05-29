@@ -67,7 +67,7 @@ const gotoClub = (clubId: number) => {
           <h2 class="club-title">{{ club.title }}</h2>
           <p class="club-description">{{ club.description }}</p>
         </div>
-        <button class="join-btn" @click.stop>
+        <button class="join-btn">
           <span>View Club</span>
           <Icon icon="mdi:arrow-right" class="btn-icon" />
         </button>

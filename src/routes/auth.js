@@ -1,12 +1,16 @@
 const router = require("express").Router();
-const { getUserByEmail, createUser, validatePassword } = require("../dataaccess/authDAO");
-const { generateToken } = require("../middleware/authMiddleware");
+const { getUserByEmail, createUser, validatePassword, deleteUser } = require("../dataaccess/authDAO");
+const { generateToken, authMiddleware } = require("../middleware/authMiddleware");
 
 router.post("/signup", async (req, res) => {
-  const { name, email, password, confirmPassword } = req.body;
+  const { name, email, password, confirmPassword, contactNumber, role, department } = req.body;
 
   if (!name || !email || !password || !confirmPassword) {
     return res.status(400).json({ error: "All fields are required" });
+  }
+
+  if (!role || !department) {
+    return res.status(400).json({ error: "Role and department are required" });
   }
 
   if (password !== confirmPassword) {
@@ -23,14 +27,14 @@ router.post("/signup", async (req, res) => {
       return res.status(409).json({ error: "Email already registered" });
     }
 
-    const userId = await createUser(name, email, password);
+    const userId = await createUser(name, email, password, role, department, contactNumber);
     const token = generateToken(userId, email);
 
     res.status(201).json({
       success: true,
       message: "Account created successfully",
       token,
-      user: { id: userId, name, email },
+      user: { id: userId, name, email, role, department },
     });
   } catch (err) {
     console.error("Signup error:", err);
@@ -73,6 +77,25 @@ router.post("/login", async (req, res) => {
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Login failed" });
+  }
+});
+
+router.delete("/delete-account", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const success = await deleteUser(userId);
+    if (!success) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Account deleted successfully",
+    });
+  } catch (err) {
+    console.error("Delete account error:", err);
+    res.status(500).json({ error: "Failed to delete account" });
   }
 });
 

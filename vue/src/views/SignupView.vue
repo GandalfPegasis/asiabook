@@ -52,6 +52,43 @@
             />
           </div>
 
+          <div class="form-group">
+            <label for="role">Role *</label>
+            <select
+              id="role"
+              v-model="formData.role"
+              required
+            >
+              <option value="">Select your role</option>
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="department">Department *</label>
+            <select
+              id="department"
+              v-model="formData.department"
+              required
+            >
+              <option value="">Select your department</option>
+              <option v-for="dept in departments" :key="dept" :value="dept">
+                {{ dept }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="contactNumber">Contact Number (Optional)</label>
+            <input
+              id="contactNumber"
+              v-model="formData.contactNumber"
+              type="tel"
+              placeholder="+1 (555) 123-4567"
+            />
+          </div>
+
           <button v-if="!isLoading" type="submit" class="btn-submit">
             Create Account
           </button>
@@ -102,22 +139,47 @@ const { signup } = useAuth();
 const isLoading = ref(false);
 const error = ref('');
 
+const departments = [
+  'Computer Science & Engineering',
+  'Business Administration',
+  'Medicine & Healthcare',
+  'Law',
+  'Civil Engineering',
+  'Psychology',
+  'Education',
+  'Nursing',
+  'Finance & Accounting',
+  'Environmental Science'
+];
+
 const formData = ref({
   name: '',
   email: '',
   password: '',
   confirmPassword: '',
+  contactNumber: '',
+  role: 'student',
+  department: ''
 });
 
 const handleSignup = async () => {
   error.value = '';
+  
+  if (!formData.value.role || !formData.value.department) {
+    error.value = 'Please select your role and department';
+    return;
+  }
+
   isLoading.value = true;
 
   const result = await signup(
     formData.value.name,
     formData.value.email,
     formData.value.password,
-    formData.value.confirmPassword
+    formData.value.confirmPassword,
+    formData.value.contactNumber || undefined,
+    formData.value.role,
+    formData.value.department
   );
 
   if (result.success) {
@@ -200,6 +262,22 @@ const handleSignup = async () => {
 }
 
 .form-group input:focus {
+  outline: none;
+  border-color: #f5576c;
+  box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1);
+}
+
+.form-group select {
+  padding: 1rem 1.25rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background-color: white;
+  cursor: pointer;
+}
+
+.form-group select:focus {
   outline: none;
   border-color: #f5576c;
   box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1);

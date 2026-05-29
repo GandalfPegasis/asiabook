@@ -13,13 +13,13 @@ const getUserByEmail = async (email) => {
   }
 };
 
-const createUser = async (name, email, password) => {
+const createUser = async (name, email, password, role = 'student', department = 'General', contactNumber = null) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const [result] = await db.query(
-      `INSERT INTO profile (name, email, password, role, department) 
-       VALUES (?, ?, ?, 'student', 'General')`,
-      [name, email, hashedPassword]
+      `INSERT INTO profile (name, email, password, role, department, contact_number) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [name, email, hashedPassword, role, department, contactNumber]
     );
 
     return result.insertId;
@@ -38,8 +38,19 @@ const validatePassword = async (plainPassword, hashedPassword) => {
   }
 };
 
+const deleteUser = async (userId) => {
+  try {
+    const [result] = await db.query("DELETE FROM profile WHERE id = ?", [userId]);
+    return result.affectedRows > 0;
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    throw error;
+  }
+};
+
 module.exports = {
   getUserByEmail,
   createUser,
   validatePassword,
+  deleteUser,
 };

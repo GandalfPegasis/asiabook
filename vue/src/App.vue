@@ -6,12 +6,33 @@ import { useAuth } from '@/composables/useAuth'
 import { Icon } from '@iconify/vue'
 
 const router = useRouter()
-const { isAuthenticated, user, logout } = useAuth()
+const { isAuthenticated, user, logout, deleteAccount } = useAuth()
 const showProfileMenu = ref(false)
+const isDeletingAccount = ref(false)
 
 const handleLogout = () => {
   logout()
   router.push({ name: 'login' })
+}
+
+const handleDeleteAccount = async () => {
+  if (!confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+    return
+  }
+
+  if (!confirm('This will permanently delete all your data. Continue?')) {
+    return
+  }
+
+  isDeletingAccount.value = true
+  const result = await deleteAccount()
+
+  if (result.success) {
+    router.push({ name: 'login' })
+  } else {
+    alert(`Failed to delete account: ${result.error}`)
+    isDeletingAccount.value = false
+  }
 }
 </script>
 
@@ -80,6 +101,16 @@ const handleLogout = () => {
                   @click="handleLogout">
                   <Icon icon="mdi:logout" />
                   <span>Sign Out</span>
+                </button>
+
+                <div class="dropdown-divider"></div>
+
+                <button 
+                  class="dropdown-item delete"
+                  @click="handleDeleteAccount"
+                  :disabled="isDeletingAccount">
+                  <Icon icon="mdi:trash-can" />
+                  <span>{{ isDeletingAccount ? 'Deleting...' : 'Delete Account' }}</span>
                 </button>
               </div>
             </transition>
@@ -267,6 +298,28 @@ const handleLogout = () => {
 
 .dropdown-item.logout:hover {
   background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #e2e8f0;
+  margin: 0.5rem 0;
+}
+
+.dropdown-item.delete {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.dropdown-item.delete:hover:not(:disabled) {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.dropdown-item.delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 main {

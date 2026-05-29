@@ -43,12 +43,12 @@ export function useAuth() {
         }
     };
 
-    const signup = async (name: string, email: string, password: string, confirmPassword: string) => {
+    const signup = async (name: string, email: string, password: string, confirmPassword: string, contactNumber?: string, role?: string, department?: string) => {
         try {
             const response = await fetch('http://localhost:3000/auth/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, password, confirmPassword }),
+                body: JSON.stringify({ name, email, password, confirmPassword, contactNumber, role, department }),
             });
 
             if (!response.ok) {
@@ -78,6 +78,28 @@ export function useAuth() {
         localStorage.removeItem('auth_user');
     };
 
+    const deleteAccount = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/auth/delete-account', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token.value}`
+                }
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to delete account');
+            }
+
+            logout();
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error instanceof Error ? error.message : 'Delete account failed' };
+        }
+    };
+
     return {
         isAuthenticated: computed(() => isAuthenticated.value),
         user: computed(() => user.value),
@@ -86,5 +108,6 @@ export function useAuth() {
         login,
         signup,
         logout,
+        deleteAccount,
     };
 }
