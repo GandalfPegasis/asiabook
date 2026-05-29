@@ -221,6 +221,56 @@ export const api = {
         return response.data;
     },
 
+    async requestJoinClub(clubId: number): Promise<any> {
+        const response = await apiClient.post(`/clubs/${clubId}/request-join`);
+        return response.data;
+    },
+
+    async getClubJoinRequests(clubId: number): Promise<any[]> {
+        const response = await apiClient.get(`/clubs/${clubId}/requests`);
+        return response.data;
+    },
+
+    async approveJoinRequest(clubId: number, requestId: number): Promise<any> {
+        const response = await apiClient.post(`/clubs/${clubId}/requests/${requestId}/approve`);
+        return response.data;
+    },
+
+    async declineJoinRequest(clubId: number, requestId: number): Promise<any> {
+        const response = await apiClient.post(`/clubs/${clubId}/requests/${requestId}/decline`);
+        return response.data;
+    },
+
+    async removeClubMember(clubId: number, memberId: number): Promise<any> {
+        const response = await apiClient.delete(`/clubs/${clubId}/members/${memberId}`);
+        return response.data;
+    },
+
+    async changeClubMemberRole(clubId: number, memberId: number, role: 'admin' | 'member'): Promise<any> {
+        const response = await apiClient.patch(`/clubs/${clubId}/members/${memberId}/role`, { role });
+        return response.data;
+    },
+
+    async getClubEvents(clubId: number): Promise<any[]> {
+        const response = await apiClient.get(`/clubs/${clubId}/events`);
+        return response.data;
+    },
+
+    async createClubEvent(clubId: number, event: { title: string; description?: string; event_date: string; location?: string }): Promise<any> {
+        const response = await apiClient.post(`/clubs/${clubId}/events`, event);
+        return response.data;
+    },
+
+    async updateClubEvent(clubId: number, eventId: number, event: { title: string; description?: string; event_date: string; location?: string }): Promise<any> {
+        const response = await apiClient.put(`/clubs/${clubId}/events/${eventId}`, event);
+        return response.data;
+    },
+
+    async deleteClubEvent(clubId: number, eventId: number): Promise<any> {
+        const response = await apiClient.delete(`/clubs/${clubId}/events/${eventId}`);
+        return response.data;
+    },
+
     async getForumById(id: number): Promise<any> {
         const response = await apiClient.get(`/forum/${id}`);
         return response.data;
