@@ -95,7 +95,7 @@ router.get("/:id", async (req, res) => {
             return res.status(404).json({ error: "Profile not found" });
         }
 
-        const [postResults] = await getPostByProfileId(PROFILE_ID);
+        const postResults = await getPostByProfileId(PROFILE_ID);
 
         const user = profileResults[0];
 
@@ -103,6 +103,8 @@ router.get("/:id", async (req, res) => {
             ...user,
             posts: postResults,
         };
+
+        console.log(data);
 
         res.json(data);
     } catch (err) {

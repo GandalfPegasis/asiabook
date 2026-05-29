@@ -25,6 +25,12 @@ export interface ApiResponse<T> {
     message?: string;
 }
 
+export interface SentFriendRequest {
+  request_id: number
+  receiver_name: string
+  receiver_id: number
+}
+
 // ==========================================
 // 2. Axios Instance Setup
 // ==========================================
@@ -150,6 +156,18 @@ export const api = {
 
     async sendFriendRequest(receiverId: number): Promise<{ success: boolean; message: string }> {
         const response = await apiClient.post<{ success: boolean; message: string }>('/friends/request', { receiverId });
+        return response.data;
+    },
+
+    async getSentFriendRequests(): Promise<SentFriendRequest[]> {
+        // Replace with your actual backend endpoint route
+        const response = await apiClient.get<SentFriendRequest[]>('/friends/requests/sent');
+        return response.data;
+    },
+
+    async cancelFriendRequest(requestId: number): Promise<{ success: boolean; message: string }> {
+        // Replace with your actual backend endpoint route
+        const response = await apiClient.delete<{ success: boolean; message: string }>(`/friends/requests/${requestId}`);
         return response.data;
     },
 

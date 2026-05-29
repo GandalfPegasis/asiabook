@@ -186,6 +186,42 @@ const sendFriendRequest = async (senderId, receiverId) => {
     }
 };
 
+const getSentFriendRequest = async (userId) => {
+    try {
+        const friendRequests = await db.query(
+            `
+            SELECT 
+                fr.id AS request_id,
+                fr.requested_to,
+                p.name AS receiver_name
+            FROM friend_request fr
+            JOIN profile p ON fr.requested_to = p.id
+            WHERE fr.requested_by = ?`,
+            [userId],
+        );
+
+        return friendRequests;
+    } catch (error) {
+        console.error("Error get sent friend request:", error);
+        throw error;
+    }
+};
+
+const cancelFriendRequest = async (id, senderId) => {
+    try {
+        const friendRequests = await db.query(
+            `DELETE FROM friend_request 
+            WHERE id = ? AND requested_by = ?`,
+            [id, senderId],
+        );
+
+        return friendRequests;
+    } catch (error) {
+        console.error("error canceling friend request:", error);
+        throw error;
+    }
+};
+
 module.exports = {
     getFriendRequestByProfileId,
     getFriendsByProfileId,
@@ -195,4 +231,6 @@ module.exports = {
     declineFriendRequest,
     getFriendSuggestions,
     sendFriendRequest,
+    getSentFriendRequest,
+    cancelFriendRequest,
 };

@@ -213,20 +213,21 @@ const fetchFriends = async () => {
 
 // Map the profile posts to match the schema expected by ListPost.vue
 const formattedProfilePosts = computed(() => {
-  if (!users.value || !users.value.posts) return [];
-  
-  return users.value.posts.map(post => ({
-    id: post.post_id,
-    author: users.value!.name,
-    role: users.value!.role || 'Member',
-    caption: post.caption,
-    images: post.location ? [`http://localhost:3000/img/${post.location}`] : [], // Wrap location in array
-    timeAgo: formatDate(post.created_at) || 'Recently',
-    likes: post.likes || 0,
-    comments: post.comment_count || 0,
-    hasLiked: false,
-    isLiking: false
-  }));
+    console.log(users.value);
+    if (!users.value || !users.value.posts) return [];
+    
+    return users.value.posts.map(post => ({
+        id: post.post_id,
+        author: users.value!.name,
+        role: users.value!.role || 'Member',
+        caption: post.caption,
+        images: post.location || [],
+        timeAgo: formatDate(post.created_at) || 'Recently',
+        likes: post.likes || 0,
+        comments: post.comment_count || 0,
+        hasLiked: false,
+        isLiking: false
+    }));
 });
 
 // Handle likes triggered from the ListPost component

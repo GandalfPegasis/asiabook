@@ -28,7 +28,15 @@ const getPosts = async (limit, offset, userId) => {
                     p.caption,
                     prof.name AS author_name,
                     p.likes,
-                    GROUP_CONCAT(DISTINCT pp.location SEPARATOR ',') AS images,
+                    
+                    -- Returns an actual JSON array of strings, or an empty array if null
+                    COALESCE(
+                        (SELECT JSON_ARRAYAGG(pp.location) 
+                        FROM post_picture pp 
+                        WHERE pp.post_id = p.id), 
+                        JSON_ARRAY()
+                    ) AS images,
+                    
                     COUNT(DISTINCT cp.id) AS comment_count,
                     p.created_at,
                     
@@ -41,9 +49,8 @@ const getPosts = async (limit, offset, userId) => {
 
                 FROM posts p
                 JOIN profile prof ON p.posted_by = prof.id
-                LEFT JOIN post_picture pp ON p.id = pp.post_id
                 LEFT JOIN post_comments cp ON p.id = cp.post_id
-                
+
                 GROUP BY p.id, p.caption, prof.name, p.likes, p.created_at
                 ORDER BY feed_score DESC
                 LIMIT ? OFFSET ?;

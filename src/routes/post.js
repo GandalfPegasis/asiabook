@@ -21,21 +21,32 @@ router.get("/", async (req, res) => {
         const offset = (page - 1) * limit;
 
         const rows = await getPosts(limit, offset, userId);
-        const formattedPosts = rows.map((post) => {
-            // Create a copy of the post object
-            const formattedPost = { ...post };
 
-            // Check if the images string exists (not null)
-            if (formattedPost.images) {
-                // Split the comma-separated string into a real JavaScript array
-                formattedPost.images = formattedPost.images.split(",");
-            } else {
-                // If there are no images, return an empty array
-                formattedPost.images = [];
+        const formattedPosts = rows.map((post) => {
+            let parsedImages = [];
+
+            // 1. If the DB driver already parsed it into an array natively
+            if (Array.isArray(post.images)) {
+                parsedImages = post.images;
+            }
+            // 2. If the DB driver returned the JSON_ARRAYAGG as a string
+            else if (typeof post.images === "string") {
+                try {
+                    parsedImages = JSON.parse(post.images);
+                } catch (e) {
+                    console.error(
+                        "Failed to parse images JSON for post:",
+                        post.id,
+                    );
+                }
             }
 
-            return formattedPost;
+            return {
+                ...post,
+                images: parsedImages,
+            };
         });
+
         res.status(200).json(formattedPosts);
     } catch (error) {
         console.error(error);

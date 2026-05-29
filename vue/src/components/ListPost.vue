@@ -35,7 +35,7 @@ defineEmits<{
         <img 
           v-for="(imgUrl, index) in post.images" 
           :key="index" 
-          :src="imgUrl" 
+          :src="`http://localhost:3000/img/${imgUrl}`" 
           alt="Post attachment" 
           class="post-image"
           @error="(e) => (e.target as HTMLElement).classList.add('image-fallback')"

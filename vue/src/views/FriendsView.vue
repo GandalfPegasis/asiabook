@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { api, apiClient } from '@/api/api'
-import { onMounted, ref, computed } from 'vue'
+import { api } from '@/api/api'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 
@@ -16,6 +16,13 @@ interface FriendRequest {
   sender_id: number
 }
 
+// NEW: Interface for sent requests
+interface SentFriendRequest {
+  request_id: number
+  receiver_name: string
+  receiver_id: number
+}
+
 interface User {
   id: number
   name: string
@@ -24,10 +31,17 @@ interface User {
 
 const router = useRouter();
 
+// Received Requests
 const friendRequests = ref<FriendRequest[]>([]);
 const isLoadingFriendRequest = ref(true);
 const friendRequestError = ref<string | null>(null);
 
+// NEW: Sent Requests
+const sentRequests = ref<SentFriendRequest[]>([]);
+const isLoadingSentRequests = ref(true);
+const sentRequestsError = ref<string | null>(null);
+
+// Friends List
 const friends = ref<Friend[]>([]);
 const isLoadingFriends = ref(true);
 const friendsError = ref<string | null>(null);
@@ -69,6 +83,21 @@ const fetchFriendRequest = async () => {
     friendRequestError.value = 'Failed to load friend requests.';
   } finally {
     isLoadingFriendRequest.value = false;
+  }
+};
+
+// NEW: Fetch sent requests
+const fetchSentRequests = async () => {
+  isLoadingSentRequests.value = true;
+  sentRequestsError.value = null;
+  try {
+    // Make sure to add this to your api/api.ts file!
+    sentRequests.value = await api.getSentFriendRequests();
+  } catch (err) {
+    console.error(err);
+    sentRequestsError.value = 'Failed to load sent friend requests.';
+  } finally {
+    isLoadingSentRequests.value = false;
   }
 };
 
@@ -116,24 +145,31 @@ const onSearchInput = () => {
 const acceptRequest = async (requestId: number) => {
   try {
     await api.acceptFriendRequest(requestId);
-    // Remove from UI and refresh friends
     friendRequests.value = friendRequests.value.filter(req => req.request_id !== requestId);
     await fetchFriends();
-    await fetchSuggestions(); // Refresh suggestions as well
+    await fetchSuggestions(); 
   } catch (err) {
     console.error('Failed to accept friend request:', err);
-    // Could show a toast notification here
   }
 };
 
 const declineRequest = async (requestId: number) => {
   try {
     await api.declineFriendRequest(requestId);
-    // Remove from UI
     friendRequests.value = friendRequests.value.filter(req => req.request_id !== requestId);
   } catch (err) {
     console.error('Failed to decline friend request:', err);
-    // Could show a toast notification here
+  }
+};
+
+// NEW: Cancel a request you sent
+const cancelSentRequest = async (requestId: number) => {
+  try {
+    // Make sure to add this to your api/api.ts file!
+    await api.cancelFriendRequest(requestId);
+    sentRequests.value = sentRequests.value.filter(req => req.request_id !== requestId);
+  } catch (err) {
+    console.error('Failed to cancel sent request:', err);
   }
 };
 
@@ -143,9 +179,11 @@ const sendFriendRequest = async (userId: number) => {
     // Remove from search results and suggestions
     searchResults.value = searchResults.value.filter(user => user.id !== userId);
     suggestions.value = suggestions.value.filter(suggestion => suggestion.id !== userId);
+    
+    // Refresh the sent requests list so it shows up immediately
+    await fetchSentRequests();
   } catch (err) {
     console.error('Failed to send friend request:', err);
-    // Could show a toast notification here
   }
 };
 
@@ -154,20 +192,20 @@ const viewProfile = (userId: number) => {
   router.push(`/profile/${userId}`);
 };
 
-const sendMessage = (userId: number) => {
+const sendMessage = (userId: number, name?: string) => {
   router.push({ name: 'messages', params: { id: userId } });
 };
 
 onMounted(() => {
   fetchFriends();
   fetchFriendRequest();
+  fetchSentRequests(); // NEW: Call it on mount
   fetchSuggestions();
 });
 </script>
 
 <template>
   <div class="friends-page">
-    <!-- Page Header -->
     <div class="page-header">
       <div class="header-content">
         <Icon icon="mdi:account-group" class="header-icon" />
@@ -179,7 +217,6 @@ onMounted(() => {
     </div>
 
     <div class="friends-container">
-      <!-- Search Sidebar -->
       <aside class="search-sidebar">
         <div class="search-card">
           <div class="card-header">
@@ -246,9 +283,8 @@ onMounted(() => {
         </div>
       </aside>
 
-      <!-- Main Content -->
       <main class="main-content">
-        <!-- Friend Requests Section -->
+        
         <section v-if="friendRequests.length > 0" class="content-section">
           <div class="section-header">
             <div class="header-info">
@@ -284,7 +320,38 @@ onMounted(() => {
           </div>
         </section>
 
-        <!-- My Friends Section -->
+        <section v-if="sentRequests.length > 0" class="content-section">
+          <div class="section-header">
+            <div class="header-info">
+              <Icon icon="mdi:account-arrow-right" class="section-icon" />
+              <div>
+                <h2>Sent Requests</h2>
+                <span class="section-meta">{{ sentRequests.length }} waiting for response</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="requests-grid">
+            <div v-for="request in sentRequests" :key="request.request_id" class="request-card">
+              <div class="request-avatar">
+                <div class="avatar-placeholder" style="background: linear-gradient(135deg, #94a3b8 0%, #cbd5e1 100%);">
+                  {{ request.receiver_name.charAt(0).toUpperCase() }}
+                </div>
+              </div>
+              <div class="request-content">
+                <h3 class="request-name">{{ request.receiver_name }}</h3>
+                <p class="request-meta">Request sent</p>
+              </div>
+              <div class="request-actions">
+                <button @click="cancelSentRequest(request.request_id)" class="btn-decline">
+                  <Icon icon="mdi:close" />
+                  <span>Cancel</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="content-section">
           <div class="section-header">
             <div class="header-info">
@@ -336,7 +403,6 @@ onMounted(() => {
           </div>
         </section>
 
-        <!-- Suggestions Section -->
         <section class="content-section">
           <div class="section-header">
             <div class="header-info">
@@ -395,7 +461,6 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
 <style scoped>
 /* ===== CSS Variables ===== */
 .friends-page {
@@ -418,6 +483,7 @@ onMounted(() => {
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --gradient-pending: linear-gradient(135deg, #94a3b8 0%, #cbd5e1 100%);
   --border-radius: 12px;
   --border-radius-lg: 16px;
 }
@@ -1144,6 +1210,11 @@ onMounted(() => {
   font-weight: 700;
   border: 2px solid white;
   box-shadow: var(--shadow-sm);
+}
+
+/* ===== Sent Requests Specifics ===== */
+.sent-requests-avatar {
+    background: var(--gradient-pending) !important; /* Forces the inline style we set in the template to be consistent if needed */
 }
 
 /* ===== Responsive Design ===== */

@@ -9,6 +9,8 @@ const {
     declineFriendRequest,
     getFriendSuggestions,
     sendFriendRequest,
+    getSentFriendRequest,
+    cancelFriendRequest,
 } = require("../dataaccess/friendDAO");
 const { authMiddleware } = require("../middleware/authMiddleware");
 
@@ -42,6 +44,46 @@ router.get("/request", async (req, res) => {
     } catch (err) {
         console.error("Database error:", err);
         res.status(500).json({ error: err.message });
+    }
+});
+// 1. GET Sent Friend Requests
+router.get("/requests/sent", async (req, res) => {
+    try {
+        // Assuming you have middleware that sets req.user
+        const userId = req.user.id;
+
+        const [sentRequests] = await getSentFriendRequest(userId);
+
+        res.status(200).json(sentRequests);
+    } catch (error) {
+        console.error("Error fetching sent requests:", error);
+        res.status(500).json({ error: "Failed to fetch sent requests" });
+    }
+});
+
+// 2. DELETE (Cancel) a Sent Friend Request
+router.delete("/requests/:id", async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const requestId = req.params.id;
+
+        // Security Check: Make sure the user deleting the request is actually the sender!
+
+        const [result] = await cancelFriendRequest(requestId, userId);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                error: "Request not found or unauthorized to cancel.",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Friend request cancelled successfully.",
+        });
+    } catch (error) {
+        console.error("Error cancelling friend request:", error);
+        res.status(500).json({ error: "Failed to cancel friend request" });
     }
 });
 
