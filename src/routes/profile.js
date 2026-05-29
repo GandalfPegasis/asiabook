@@ -14,6 +14,15 @@ router.use(authMiddleware);
 
 router.get("/", getProfile);
 
+const validatePhoneNumber = (phone) => {
+    if (!phone) return true;
+
+    const phoneRegex = /^\+?[0-9\s\-()]{7,15}$/;
+    const digitsOnly = phone.replace(/\D/g, "");
+
+    return phoneRegex.test(phone) && digitsOnly.length >= 7 && digitsOnly.length <= 15;
+}
+
 const balls = (data) => {
     if (!data.birth_date) data.birth_date = null;
     if (!data.nationality) data.nationality = null;
@@ -41,6 +50,10 @@ router.put("/", async (req, res) => {
 
     if (!name || !email) {
         return res.status(400).json({ error: "Name and email are required" });
+    }
+
+    if (contact_info && !validatePhoneNumber(contact_info)) {
+        return res.status(400).json({ error: "Invalid contact number format. Use 7 to 15 digits (spaces, dashes, () and + allowed)." });
     }
 
     try {

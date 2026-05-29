@@ -1,9 +1,8 @@
 const router = require("express").Router();
-const Filter = require("bad-words");
+const Filter = require("leo-profanity");
 const { getUserByEmail, createUser, validatePassword, deleteUser } = require("../dataaccess/authDAO");
 const { generateToken, authMiddleware } = require("../middleware/authMiddleware");
 
-const filter = new Filter();
 
 const UNIVERSITY_RESTRICTED = [
   "asia university",
@@ -50,7 +49,7 @@ router.post("/signup", async (req, res) => {
 
   const lowerName = trimmedName.toLowerCase();
 
-  if (filter.isProfane(trimmedName)) {
+  if (filter.check(trimmedName)) {
     return res.status(400).json({ error: "Name contains inappropriate language" });
   }
 

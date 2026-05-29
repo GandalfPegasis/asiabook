@@ -207,7 +207,7 @@ const saveProfile = async () => {
     }, 3000);
     
   } catch (err: any) {
-    saveError.value = err.response?.data?.message || 'Failed to update profile. Please try again.';
+    saveError.value = err.response?.data?.error || 'Failed to update profile. Please try again.';
   } finally {
     isSaving.value = false;
   }
