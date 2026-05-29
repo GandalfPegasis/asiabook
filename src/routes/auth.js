@@ -1,6 +1,31 @@
 const router = require("express").Router();
+const Filter = require("bad-words");
 const { getUserByEmail, createUser, validatePassword, deleteUser } = require("../dataaccess/authDAO");
 const { generateToken, authMiddleware } = require("../middleware/authMiddleware");
+
+const filter = new Filter();
+
+const UNIVERSITY_RESTRICTED = [
+  "asia university",
+  "admin",
+  "administrator",
+  "staff",
+  "faculty",
+  "moderator",
+  "professor",
+  "teacher",
+  "president",
+  "dean",
+  "director",
+  "officer",
+  "manager",
+  "ceo",
+  "founder",
+  "owner",
+  "council",
+  "board",
+  "committee"
+];
 
 router.post("/signup", async (req, res) => {
   const { name, email, password, confirmPassword, contactNumber, role, department } = req.body;
@@ -11,6 +36,31 @@ router.post("/signup", async (req, res) => {
 
   if (!role || !department) {
     return res.status(400).json({ error: "Role and department are required" });
+  }
+
+  const trimmedName = name.trim();
+  if (trimmedName.length < 2 || trimmedName.length > 50) {
+    return res.status(400).json({ error: "Name must be between 2 and 50 characters" });
+  }
+
+  const nameRegex = /^[A-Za-zÀ-ÿ\s'-]+$/;
+  if (!nameRegex.test(trimmedName)) {
+    return res.status(400).json({ error: "Name can only contain letters, spaces, apostrophes, and hyphens" });
+  }
+
+  const lowerName = trimmedName.toLowerCase();
+
+  if (filter.isProfane(trimmedName)) {
+    return res.status(400).json({ error: "Name contains inappropriate language" });
+  }
+
+  const containsRestrictedWord = UNIVERSITY_RESTRICTED.some((word) => lowerName.includes(word.toLowerCase()));
+  if (containsRestrictedWord) {
+    return res.status(400).json({ error: "Name contains restricted words" });
+  }
+
+  if (!email.endsWith("@live.asia.edu.tw")) {
+    return res.status(400).json({ error: "Please use Asia University's email address" });
   }
 
   if (password !== confirmPassword) {
@@ -27,14 +77,14 @@ router.post("/signup", async (req, res) => {
       return res.status(409).json({ error: "Email already registered" });
     }
 
-    const userId = await createUser(name, email, password, role, department, contactNumber);
+    const userId = await createUser(trimmedName, email, password, role, department, contactNumber);
     const token = generateToken(userId, email);
 
     res.status(201).json({
       success: true,
       message: "Account created successfully",
       token,
-      user: { id: userId, name, email, role, department },
+      user: { id: userId, name: trimmedName, email, role, department },
     });
   } catch (err) {
     console.error("Signup error:", err);
