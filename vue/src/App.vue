@@ -11,6 +11,7 @@ const showProfileMenu = ref(false)
 const isDeletingAccount = ref(false)
 
 const handleLogout = () => {
+  showProfileMenu.value = false
   logout()
   router.push({ name: 'login' })
 }
@@ -28,6 +29,9 @@ const handleDeleteAccount = async () => {
   const result = await deleteAccount()
 
   if (result.success) {
+
+    showProfileMenu.value = false
+    isDeletingAccount.value = false
     router.push({ name: 'login' })
   } else {
     alert(`Failed to delete account: ${result.error}`)
