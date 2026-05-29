@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import MainLayout from '@/layouts/MainLayout.vue';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import ErrorView from '@/views/ErrorView.vue';
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -124,6 +125,23 @@ const router = createRouter({
                     meta: { requiresAuth: true, isAdmin: true }
                 }
             ]
+        },
+        {
+            path: '/forbidden',
+            name: 'forbidden',
+            component: ErrorView,
+            props: { 
+                code: '403', 
+                title: 'Access Denied', 
+                message: 'You do not have the necessary administrator permissions to view this command center.' 
+            }
+        },
+        // The 404 Route
+        {
+            path: '/:pathMatch(.*)*',
+            name: 'not-found',
+            component: ErrorView,
+            // No props needed here, it uses the default 404 values we set in the component
         }
     ],
 })
