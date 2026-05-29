@@ -67,6 +67,13 @@ const router = createRouter({
             name: 'clubs',
             component: () => import('../views/ClubView.vue'),
             meta: { requiresAuth: true }
+        },
+        {
+            path: '/clubs/:id',
+            name: 'club-detail',
+            component: () => import('../views/ClubDetailView.vue'),
+            props: true,
+            meta: { requiresAuth: true }
         }
     ],
 })

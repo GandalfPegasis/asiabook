@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
+
+const router = useRouter();
 
 // Mocking the data you would fetch from: GET /clubs
 const clubs = ref([
@@ -41,6 +44,10 @@ const clubs = ref([
     icon: 'mdi:cloud-outline'
   }
 ]);
+
+const gotoClub = (clubId: number) => {
+  router.push({ name: 'club-detail', params: { id: String(clubId) } });
+};
 </script>
 
 <template>
@@ -52,7 +59,7 @@ const clubs = ref([
     </header>
 
     <div class="clubs-grid">
-      <div v-for="club in clubs" :key="club.id" class="club-card">
+      <div v-for="club in clubs" :key="club.id" class="club-card" @click="gotoClub(club.id)">
         <div class="club-icon-wrapper">
           <Icon :icon="club.icon" class="club-icon" />
         </div>
@@ -60,8 +67,8 @@ const clubs = ref([
           <h2 class="club-title">{{ club.title }}</h2>
           <p class="club-description">{{ club.description }}</p>
         </div>
-        <button class="join-btn">
-          <span>Join Club</span>
+        <button class="join-btn" @click.stop>
+          <span>View Club</span>
           <Icon icon="mdi:arrow-right" class="btn-icon" />
         </button>
       </div>
@@ -141,6 +148,7 @@ h1, h2, p {
   align-items: center;
   text-align: center;
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  cursor: pointer;
 }
 
 .club-card:hover {
