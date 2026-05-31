@@ -1,57 +1,71 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { apiClient } from '@/api/api'
 
-// Mocking data from: GET /api/admin/forums (Joined with `clubs` and `forum_reply`)
-const forums = ref([
-  {
-    id: 1,
-    title: 'Meeting spot behind the school',
-    club: 'General (No Club)',
-    author: 'User #2',
-    votes: -14,
-    status: 'flagged', // active, locked, flagged
-    createdAt: '2026-05-29T10:00:00Z',
-    replies: [
-      { id: 1, author: 'User #2', content: 'i usually go to the back of the school to meet my regular femboy called joel', votes: -8, flagged: true },
-      { id: 2, author: 'User #1', content: 'ok got it can i have his phone number', votes: 2, flagged: false },
-      { id: 3, author: 'User #2', content: 'his phone number 12344444', votes: 0, flagged: false }
-    ]
-  },
-  {
-    id: 2,
-    title: 'Looking for SYM Jet SL second-hand market prices',
-    club: 'Taiwan Riders',
-    author: 'Alex Wu',
-    votes: 45,
-    status: 'active',
-    createdAt: '2026-05-28T14:30:00Z',
-    replies: [
-      { id: 4, author: 'Mike Ross', content: 'Check the Facebook marketplace groups, usually around 80k NTD depending on mileage.', votes: 12, flagged: false }
-    ]
-  },
-  {
-    id: 3,
-    title: 'Building a Gym Management App (Zelox) - Backend Architecture',
-    club: 'Software Engineering Hub',
-    author: 'Sarah Tan',
-    votes: 89,
-    status: 'active',
-    createdAt: '2026-05-25T09:15:00Z',
-    replies: []
-  }
-])
+// Define the shape of our data
+interface Reply {
+  id: number;
+  author: string;
+  content: string;
+  votes: number;
+  flagged: boolean;
+}
 
+interface Forum {
+  id: number;
+  title: string;
+  club: string;
+  author: string;
+  votes: number;
+  status: 'active' | 'locked' | 'flagged';
+  createdAt: string;
+  replies: Reply[];
+}
+
+const forums = ref<Forum[]>([])
+const isLoading = ref(false)
 const searchQuery = ref('')
 const clubFilter = ref('all')
 const expandedThreadId = ref<number | null>(null)
+const flaggedCount = ref(0)
 
-const filteredForums = computed(() => {
-  return forums.value.filter(forum => {
-    const matchesSearch = forum.title.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchesClub = clubFilter.value === 'all' || forum.club === clubFilter.value
-    return matchesSearch && matchesClub
-  })
+// 1. FETCH FORUMS
+const fetchForums = async () => {
+  try {
+    isLoading.value = true;
+    
+    // Pass search and filter to your backend
+    const res = await apiClient.get('/admin/forums', {
+      params: {
+        search: searchQuery.value || undefined,
+        club: clubFilter.value === 'all' ? undefined : clubFilter.value
+      }
+    });
+
+    forums.value = res.data.data || res.data;
+    
+    // Update the KPI badge dynamically
+    flaggedCount.value = forums.value.filter(f => f.status === 'flagged').length;
+    
+  } catch (e) {
+    console.error("Failed to fetch forums:", e);
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// Watchers for Server-Side Filtering (with 300ms debounce)
+let searchTimeout: any;
+watch([searchQuery, clubFilter], () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    fetchForums();
+  }, 300);
+});
+
+onMounted(() => {
+  fetchForums();
 })
 
 // Toggle the thread row to see the replies inside
@@ -59,30 +73,63 @@ const toggleThread = (id: number) => {
   expandedThreadId.value = expandedThreadId.value === id ? null : id
 }
 
-// Moderation Actions
-const deleteReply = (threadId: number, replyId: number) => {
-  if (confirm('Delete this specific reply? This will cascade and delete any nested replies.')) {
-    const thread = forums.value.find(f => f.id === threadId)
-    if (thread) {
-      thread.replies = thread.replies.filter(r => r.id !== replyId)
-      // Call: DELETE /api/admin/replies/:replyId
+// 2. MODERATION ACTIONS
+const deleteReply = async (threadId: number, replyId: number) => {
+  if (!confirm('Delete this specific reply? This will cascade and delete any nested replies.')) return;
+
+  const thread = forums.value.find(f => f.id === threadId);
+  if (!thread) return;
+
+  // Optimistic UI Update
+  const originalReplies = [...thread.replies];
+  thread.replies = thread.replies.filter(r => r.id !== replyId);
+
+  try {
+    await apiClient.delete(`/admin/replies/${replyId}`);
+  } catch (error) {
+    console.error(error);
+    // Revert if API fails
+    thread.replies = originalReplies;
+    alert("Failed to delete reply.");
+  }
+}
+
+const toggleThreadLock = async (forum: Forum) => {
+  const originalStatus = forum.status;
+  const newStatus = forum.status === 'locked' ? 'active' : 'locked';
+
+  try {
+    // Optimistic UI Update
+    forum.status = newStatus;
+
+    if (newStatus === 'locked') {
+      await apiClient.put(`/admin/forums/${forum.id}/lock`);
+    } else {
+      await apiClient.put(`/admin/forums/${forum.id}/unlock`);
     }
+  } catch (error) {
+    console.error(error);
+    // Revert if API fails
+    forum.status = originalStatus;
+    alert("Failed to update thread lock status.");
   }
 }
 
-const toggleThreadLock = (forum: any) => {
-  if (forum.status === 'locked') {
-    forum.status = 'active'
-  } else {
-    forum.status = 'locked'
-    // Call: PUT /api/admin/forums/:id/lock
-  }
-}
+const deleteThread = async (threadId: number) => {
+  if (!confirm('CRITICAL: Delete this entire forum thread and all its replies?')) return;
 
-const deleteThread = (threadId: number) => {
-  if (confirm('CRITICAL: Delete this entire forum thread and all its replies?')) {
-    forums.value = forums.value.filter(f => f.id !== threadId)
-    // Call: DELETE /api/admin/forums/:id
+  // Optimistic UI Update
+  const originalForums = [...forums.value];
+  forums.value = forums.value.filter(f => f.id !== threadId);
+
+  try {
+    await apiClient.delete(`/admin/forums/${threadId}`);
+    flaggedCount.value = forums.value.filter(f => f.status === 'flagged').length; // Update KPI
+  } catch (error) {
+    console.error(error);
+    // Revert if API fails
+    forums.value = originalForums;
+    alert("Failed to delete thread.");
   }
 }
 </script>
@@ -99,8 +146,8 @@ const deleteThread = (threadId: number) => {
       <div class="kpi-badge">
         <Icon icon="heroicons:shield-exclamation-solid" class="kpi-icon" />
         <div class="kpi-text">
-          <span class="kpi-number">1</span>
-          <span class="kpi-label">Flagged Thread</span>
+          <span class="kpi-number">{{ flaggedCount }}</span>
+          <span class="kpi-label">Flagged Threads</span>
         </div>
       </div>
     </header>
@@ -138,8 +185,8 @@ const deleteThread = (threadId: number) => {
             <th class="text-right">Manage</th>
           </tr>
         </thead>
-        
-        <tbody v-for="forum in filteredForums" :key="forum.id">
+
+        <tbody v-for="forum in forums" :key="forum.id">
           <tr :class="{ 'expanded-row': expandedThreadId === forum.id }">
             <td class="title-cell">
               <button class="expand-btn" @click="toggleThread(forum.id)">
@@ -216,6 +263,15 @@ const deleteThread = (threadId: number) => {
             </td>
           </tr>
         </tbody>
+        
+        <tr v-if="forums.length === 0">
+          <td colspan="5" class="empty-state-card">
+            <Icon icon="heroicons:check-badge" class="empty-icon" />
+            <h2>All caught up!</h2>
+            <p>No threads found matching your criteria.</p>
+          </td>
+        </tr>
+
       </table>
     </div>
 
@@ -332,6 +388,27 @@ const deleteThread = (threadId: number) => {
 .status-pill.active { background: #dcfce7; color: #15803d; }
 .status-pill.locked { background: #ffedd5; color: #c2410c; }
 .status-pill.flagged { background: #fee2e2; color: #b91c1c; }
+
+/* Empty State */
+.empty-state-card {
+  text-align: center;
+  padding: 5rem 2rem !important; /* Forces it to be taller than a normal row */
+  background-color: #f8fafc;
+}
+.empty-icon { 
+  font-size: 4rem; 
+  color: #10b981; /* Emerald green */
+  margin-bottom: 1rem; 
+}
+.empty-state-card h2 { 
+  margin: 0 0 0.5rem 0; 
+  color: #0f172a; 
+  font-size: 1.5rem;
+}
+.empty-state-card p { 
+  margin: 0; 
+  color: #64748b; 
+}
 
 /* Actions */
 .text-right { text-align: right; }

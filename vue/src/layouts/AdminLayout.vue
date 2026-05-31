@@ -14,12 +14,12 @@ const navItems = [
   { name: 'Forum Oversight', routeName: 'admin-forum', icon: 'heroicons:building-library-solid' },
   { name: 'Club Oversight', routeName: 'admin-club', icon: 'heroicons:building-library-solid' },
   { name: 'Moderation Feed', routeName: 'admin-moderation', icon: 'heroicons:shield-check-solid' },
-  { name: 'System Settings', routeName: 'admin-system-settings', icon: 'heroicons:cog-8-tooth-solid' },
+  // { name: 'System Settings', routeName: 'admin-system-settings', icon: 'heroicons:cog-8-tooth-solid' },
 ]
 
-const handleExitAdmin = () => {
-  // Either log them out completely, or push them back to the student feed
-  router.push({ name: 'home' })
+const handleLogout = () => {
+  logout();
+  router.push({ name: 'login' })
 }
 </script>
 
@@ -48,16 +48,16 @@ const handleExitAdmin = () => {
       </nav>
 
       <div class="sidebar-footer">
-        <button class="exit-btn" @click="handleExitAdmin">
+        <button class="exit-btn" @click="handleLogout">
           <Icon icon="mdi:arrow-left-box" class="nav-icon" />
-          <span>Back to App</span>
+          <span>Log out</span>
         </button>
       </div>
     </aside>
 
     <main class="main-content">
       
-      <header class="admin-topbar">
+      <!-- <header class="admin-topbar">
         <div class="topbar-left">
           </div>
         
@@ -77,7 +77,7 @@ const handleExitAdmin = () => {
             </div>
           </div>
         </div>
-      </header>
+      </header> -->
 
       <div class="page-container">
         <RouterView />

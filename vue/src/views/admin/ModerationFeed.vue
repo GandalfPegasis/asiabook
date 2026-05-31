@@ -1,73 +1,107 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { apiClient } from '@/api/api' // Make sure this path is correct for your project!
 
 // Toggling between posts and comments
 const activeTab = ref('posts')
 
-// Mocking data from a joined query: 
-// SELECT * FROM posts p JOIN profile u ON p.posted_by = u.id JOIN reports r ON r.post_id = p.id
-const flaggedPosts = ref([
-  {
-    id: 101,
-    author: 'Alex Wu',
-    authorInitials: 'A',
-    role: 'student',
-    caption: 'Selling my old exam papers for CS101. DM me with offers.',
-    hasImage: false,
-    reportedBy: 'System Auto-Mod',
-    reportReason: 'Academic Dishonesty / Selling Course Material',
-    severity: 'high',
-    timestamp: '2 hours ago'
-  },
-  {
-    id: 102,
-    author: 'John Chen',
-    authorInitials: 'J',
-    role: 'student',
-    caption: 'This new parking policy is completely ridiculous. Whoever wrote this should be fired.',
-    hasImage: true,
-    imageUrl: 'https://images.unsplash.com/photo-1590642916589-592bca10dfbf?auto=format&fit=crop&w=600&q=80',
-    reportedBy: 'Prof. Lin',
-    reportReason: 'Harassment / Uncivil Behavior',
-    severity: 'medium',
-    timestamp: '5 hours ago'
-  }
-])
-
-const flaggedComments = ref([
-  {
-    id: 501,
-    author: 'Sarah Tan',
-    authorInitials: 'S',
-    role: 'student',
-    content: 'spam link http://malicious-site.com/free-money',
-    parentPostId: 42,
-    reportedBy: 'Mike Ross',
-    reportReason: 'Spam / Phishing',
-    severity: 'high',
-    timestamp: '10 mins ago'
-  }
-])
+// Initialize as empty arrays
+const flaggedPosts = ref<any[]>([])
+const flaggedComments = ref<any[]>([])
+const isLoading = ref(false)
 
 const activeQueue = computed(() => activeTab.value === 'posts' ? flaggedPosts.value : flaggedComments.value)
 
-// Moderation Actions
-const resolveReport = (id: number, action: 'keep' | 'delete' | 'warn') => {
-  if (action === 'delete') {
-    if (!confirm('Permanently delete this content from the database?')) return
+// 1. FETCH DATA FUNCTION
+const fetchModerationData = async () => {
+  try {
+    isLoading.value = true;
+
+    // Fetch both posts and comments simultaneously
+    const [postsRes, commentsRes] = await Promise.all([
+      apiClient.get('/admin/post/'),
+      // Assuming you will build a similar route for comments later
+      apiClient.get('/admin/post/comments').catch(() => ({ data: { data: [] } })) 
+    ]);
+
+    // Map the backend SQL data to match your Vue template's required structure
+    flaggedPosts.value = postsRes.data.data.map((post: any) => ({
+      id: post.id,
+      author: post.author_name,
+      authorInitials: post.author_name ? post.author_name.charAt(0).toUpperCase() : '?',
+      role: 'student', // You might need to add role to your SQL SELECT if you want this dynamic
+      caption: post.caption,
+      hasImage: !!post.image_url, 
+      imageUrl: post.image_url || '',
+      // If there are multiple reports, combine the reasons
+      reportReason: post.reports?.length > 0 
+        ? post.reports.map((r: any) => r.reason).join(', ') 
+        : 'Auto-flagged by System',
+      reportedBy: post.report_count > 1 ? 'Multiple Users' : 'Community Member',
+      // Determine severity based on how many people reported it
+      severity: post.report_count >= 3 ? 'high' : 'medium',
+      timestamp: new Date(post.created_at).toLocaleString()
+    }));
+
+    // Do the same for comments if you have them
+    flaggedComments.value = commentsRes.data?.data || [];
+
+  } catch (error) {
+    console.error("Failed to load moderation queue:", error);
+  } finally {
+    isLoading.value = false;
   }
-  
-  // Remove from the local UI queue
-  if (activeTab.value === 'posts') {
-    flaggedPosts.value = flaggedPosts.value.filter(p => p.id !== id)
-  } else {
-    flaggedComments.value = flaggedComments.value.filter(c => c.id !== id)
-  }
-  
-  // In reality, you'd send an API request here:
-  // POST /api/admin/moderation/resolve { itemId: id, action: action, type: activeTab.value }
 }
+
+// 2. MODERATION ACTIONS FUNCTION
+const resolveReport = async (id: number, action: 'keep' | 'delete' | 'warn' | 'suspend') => {
+  
+  // Destructive action confirmation
+  if (action === 'delete' && !confirm('Permanently delete this content from the database?')) return;
+  if (action === 'suspend' && !confirm('Suspend this post? It will be hidden from the feed.')) return;
+
+  const originalPosts = [...flaggedPosts.value];
+  const originalComments = [...flaggedComments.value];
+
+  try {
+    // Optimistic UI Update: Remove it from the screen immediately so it feels fast
+    if (activeTab.value === 'posts') {
+      flaggedPosts.value = flaggedPosts.value.filter(p => p.id !== id);
+    } else {
+      flaggedComments.value = flaggedComments.value.filter(c => c.id !== id);
+    }
+
+    // Call the corresponding API endpoint we built earlier
+    const endpointBase = `/admin/post/${activeTab.value}`; 
+    
+    if (action === 'keep') {
+      // Dismiss the reports and keep the post active
+      await apiClient.put(`${endpointBase}/${id}/dismiss-reports`);
+    } 
+    else if (action === 'suspend' || action === 'delete') {
+      // Suspend it (hides it from the feed)
+      await apiClient.put(`${endpointBase}/${id}/suspend`);
+    }
+    else if (action === 'warn') {
+      // You can add logic to send an email or database warning to the user here
+      alert("Warning sent to user.");
+      await apiClient.put(`${endpointBase}/${id}/suspend`);
+    }
+
+  } catch (error) {
+    console.error(`Failed to ${action} item:`, error);
+    // If the API fails, revert the UI back to how it was
+    flaggedPosts.value = originalPosts;
+    flaggedComments.value = originalComments;
+    alert(`Failed to ${action} the content. Please try again.`);
+  }
+}
+
+// 3. TRIGGER FETCH ON LOAD
+onMounted(() => {
+  fetchModerationData();
+})
 </script>
 
 <template>

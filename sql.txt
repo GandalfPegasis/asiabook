@@ -8,7 +8,10 @@ CREATE TABLE profile(
     role ENUM("student", "teacher"),
     department varchar(100),
     language text,
-    contact_info text
+    contact_info text,
+    status ENUM("active", "suspended"),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE friends(
@@ -32,7 +35,8 @@ CREATE TABLE posts(
     posted_by int,
     caption text,
     likes int default 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+    status ENUM('active', 'reviewing', 'suspended') DEFAULT 'active',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (posted_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
 );
 
@@ -43,11 +47,13 @@ CREATE TABLE post_tags(
     FOREIGN KEY (post_id) REFERENCES posts(id) ON UPDATE cascade ON DELETE cascade
 )
 
-create table comment_post(
+create table post_comment(
     id int primary key auto_increment,
     comment_by int,
     post_id int,
     content text NOT NULL,
+    status ENUM('active', 'reviewing', 'suspended') DEFAULT 'active', -- For your moderation queue
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Highly recommended!
     FOREIGN KEY (comment_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade,
     FOREIGN KEY (post_id) REFERENCES posts(id) ON UPDATE cascade ON DELETE cascade,
 )
@@ -66,6 +72,7 @@ CREATE TABLE forum(
     description text,
     club_id int DEFAULT NULL,
     votes int NOT NULL DEFAULT 0,
+    status ENUM('active', 'locked', 'flagged') DEFAULT 'active',
     FOREIGN KEY (post_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade,
     FOREIGN KEY (club_id) REFERENCES clubs(id) ON UPDATE cascade ON DELETE cascade
 );
@@ -79,6 +86,8 @@ CREATE TABLE forum_reply(
     reply_of int,
     content text,
     votes int NOT NULL DEFAULT 0,
+    status ENUM('active', 'reviewing', 'flagged', 'suspended') DEFAULT 'active',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (forum_id) REFERENCES forum(id) ON UPDATE cascade ON DELETE cascade,
     FOREIGN KEY (post_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
 );
@@ -106,7 +115,10 @@ INSERT INTO forum_reply(forum_id, post_by, reply_of, content) VALUES (1, 2, 2, '
 CREATE TABLE clubs(
     id int primary key auto_increment,
     title text,
-    description text
+    description text,
+    status ENUM('active', 'suspended', 'in review') ,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE messages(
@@ -127,6 +139,55 @@ CREATE TABLE club_members(
     club_id int,
     FOREIGN KEY (profile_id) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade,
     FOREIGN KEY (club_id) REFERENCES clubs(id) ON UPDATE cascade ON DELETE cascade
+);
+
+
+
+-- REPORTS
+
+CREATE TABLE post_report (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    reporter_id INT NOT NULL,     -- The user who clicked 'Report'
+    post_id INT NOT NULL,         -- The post being reported
+    reason TEXT NOT NULL,         -- Why they reported it
+    status ENUM('pending', 'resolved', 'dismissed') DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (reporter_id) REFERENCES profile(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+);
+
+-- 2. For reporting a CLUB (Notice the Foreign Key changes!)
+CREATE TABLE club_report (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    reporter_id INT NOT NULL,     
+    club_id INT NOT NULL,         -- The club being reported
+    reason TEXT NOT NULL,
+    status ENUM('pending', 'resolved', 'dismissed') DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (reporter_id) REFERENCES profile(id) ON DELETE CASCADE,
+    FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE CASCADE
+);
+
+CREATE TABLE report (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    reporter_id INT NOT NULL, 
+    
+    -- What kind of thing is being reported?
+    entity_type ENUM('post', 'post_comment', 'user', 'forum', 'forum_comment', 'club') NOT NULL,
+    
+    -- The ID of the thing being reported (Post ID, Club ID, User ID, etc.)
+    entity_id INT NOT NULL, 
+    
+    reason TEXT NOT NULL,
+    status ENUM('pending', 'reviewed', 'dismissed') DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (reporter_id) REFERENCES profile(id) ON DELETE CASCADE
+    
+    -- Note: We don't use strict Foreign Keys for entity_id here because 
+    -- it points to different tables depending on the entity_type.
 );
 
 INSERT INTO profile(name, email, password, birth_date, nationality, role, department, language, contact_info)

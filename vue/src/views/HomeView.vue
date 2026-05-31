@@ -107,7 +107,13 @@ const likePost = async (postId: number) => {
     post.isLiking = false;
   }
 };
-
+// Parent component script
+const handleReport = (postId: number) => {
+  if (confirm("Are you sure you want to report this post to the admins?")) {
+    // Call your API: apiClient.post(`/posts/${postId}/report`)
+    console.log(`Reporting post ${postId}`);
+  }
+}
 onMounted(() => {
   fetchPosts();
 });
@@ -136,8 +142,8 @@ onMounted(() => {
       </div>
 
       <template v-else>
-        
-        <ListPost :posts="feedPosts" @like="likePost" />
+
+        <ListPost :posts="feedPosts" @like="likePost" @report="handleReport"/>
 
         <div class="load-more-container" v-if="feedPosts.length > 0">
           <button 

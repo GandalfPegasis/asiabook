@@ -30,6 +30,12 @@ const router = createRouter({
                     meta: { requiresAuth: true }
                 },
                 {
+                    path: '/post/:id',
+                    name: 'post-detail',
+                    component: () => import('../views/HomeView.vue'),
+                    meta: { requiresAuth: true }
+                },
+                {
                     path: '/profile/:id?',
                     name: 'profile',
                     component: () => import('../views/ProfileView.vue'),
@@ -153,13 +159,23 @@ router.beforeEach((to, from) => {
     
     const requiresAuth = to.meta.requiresAuth !== false
 
-    const requireAdmin = to.meta.isAdmin !== false
+    const requireAdmin = to.meta.isAdmin
+    const userRole = 'teacher' // change
+
+    if (to.name === 'forbidden' || to.name === 'not-found' || to.name === 'login') {
+        return; // Returning nothing tells Vue Router "proceed as normal"
+    }
     
     if (requiresAuth && !isAuthenticated.value) {
-        return '/login'
+        return { name: 'login' }
     } else if ((to.name === 'login' || to.name === 'signup') && isAuthenticated.value) {
-        return '/home'
+        return { name: 'home'}
     }
+
+    if (requireAdmin && userRole !== "teacher") {
+        // If a student tries to go to /admin, kick them to the 403 page
+        return { name: 'forbidden' }
+    } 
 })
 
 export default router

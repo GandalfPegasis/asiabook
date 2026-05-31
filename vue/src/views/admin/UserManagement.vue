@@ -1,21 +1,104 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 
-// Mocking the data from: GET /api/admin/users (Maps to your `profile` table)
-const users = ref([
-  { id: 1, name: 'John Chen', email: 'j.chen@school.edu', role: 'student', department: 'Computer Science', status: 'active', joinDate: '2025-09-01' },
-  { id: 2, name: 'Prof. Lin', email: 'lin_w@faculty.com', role: 'teacher', department: 'Information Engineering', status: 'active', joinDate: '2023-02-15' },
-  { id: 3, name: 'Sarah Tan', email: 'stan8@mail.com', role: 'student', department: 'Business Admin', status: 'pending', joinDate: '2026-05-28' },
-  { id: 4, name: 'Mike Ross', email: 'm.ross@law.edu', role: 'teacher', department: 'Law & Ethics', status: 'active', joinDate: '2021-08-20' },
-  { id: 5, name: 'Alex Wu', email: 'awu.design@school.edu', role: 'student', department: 'Graphic Design', status: 'suspended', joinDate: '2024-11-10' },
-])
+import { apiClient } from '@/api/api'
 
-// Filter & Search State
+interface User {
+  id: number; // Make sure your backend SELECTs this!
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+  status: 'active' | 'suspended' | 'pending';
+  created_at: string;
+}
+
+const users = ref<User[]>([]);
+const userLoading = ref(false);
+
+// Pagination State
+const currentPage = ref(1);
+const totalUsers = ref(0);
+
 const searchQuery = ref('')
-const roleFilter = ref('all') // 'all', 'student', or 'teacher'
+const roleFilter = ref('all')
 
-// Computed property to handle the search and filter logic automatically
+const fetchUser = async (page = 1) => {
+  try {
+    userLoading.value = true;
+
+    // Pass the search and role to the server as query parameters
+    const response = await apiClient.get("/admin/user", { 
+      params: { 
+        page: page,
+        search: searchQuery.value || undefined, // If empty, don't send it
+        role: roleFilter.value === 'all' ? undefined : roleFilter.value // If 'all', don't send it
+      } 
+    });
+
+    // Now users.value IS the filtered list straight from the server!
+    console.log(response.data);
+    users.value = response.data.data;
+    currentPage.value = response.data.page;
+    totalUsers.value = response.data.total_user;
+    
+  } catch (error) {
+    console.error("Failed to fetch users:", error);
+  } finally {
+    userLoading.value = false;
+  }
+}
+
+const toggleUserStatus = async (user: User) => {
+  const originalStatus = user.status;
+  const newStatus = user.status === 'suspended' ? 'active' : 'suspended';
+
+  // Ask for confirmation if suspending
+  if (newStatus === 'suspended' && !confirm(`Are you sure you want to suspend ${user.name}?`)) {
+    return;
+  }
+
+  try {
+    // Optimistic UI update (feels faster to the user)
+    user.status = newStatus;
+
+    // Call your backend (Adjust the URL to match your actual route)
+    await apiClient.put(`/admin/user/${user.id}/status`, { status: newStatus });
+    
+  } catch (error) {
+    console.error("Failed to update status:", error);
+    // Revert the status if the API call fails
+    user.status = originalStatus;
+    alert("Failed to update user status.");
+  }
+}
+
+
+const deleteUser = async (userId: number, userName: string) => {
+  if (confirm(`CRITICAL: Delete ${userName} entirely? This cascades and deletes all their posts and clubs.`)) {
+    
+    // Store original array in case we need to revert
+    const previousUsers = [...users.value];
+    
+    try {
+      // Optimistic UI update
+      users.value = users.value.filter(u => u.id !== userId);
+      totalUsers.value -= 1;
+
+      // Call your backend
+      await apiClient.delete(`admin/user/${userId}`);
+      
+    } catch (error) {
+      console.error("Failed to delete user:", error);
+      // Revert if it fails
+      users.value = previousUsers;
+      totalUsers.value += 1;
+      alert("Failed to delete user.");
+    }
+  }
+}
+
 const filteredUsers = computed(() => {
   return users.value.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
@@ -25,22 +108,21 @@ const filteredUsers = computed(() => {
   })
 })
 
-// Mock Actions
-const toggleUserStatus = (user: any) => {
-  if (user.status === 'suspended') {
-    user.status = 'active'
-  } else if (confirm(`Are you sure you want to suspend ${user.name}? They will not be able to log in.`)) {
-    user.status = 'suspended'
-    // Here you would call: PUT /api/admin/users/:id/suspend
-  }
-}
 
-const deleteUser = (userId: number, userName: string) => {
-  if (confirm(`CRITICAL: Delete ${userName} entirely? This cascades and deletes all their posts and clubs.`)) {
-    users.value = users.value.filter(u => u.id !== userId)
-    // Here you would call: DELETE /api/admin/users/:id
-  }
-}
+let searchTimeout: any;
+watch([searchQuery, roleFilter], () => {
+  // We use a small 300ms "debounce" delay here. 
+  // This prevents the app from spamming your server with 10 API calls 
+  // if the user types "John Smith" really fast.
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    fetchUser(1); // Always reset to page 1 when filtering changes
+  }, 300); 
+});
+
+onMounted(() => {
+  fetchUser(1); // Fetch page 1 on load
+})
 </script>
 
 <template>
@@ -112,7 +194,7 @@ const deleteUser = (userId: number, userName: string) => {
             </td>
 
             <td>
-              <p class="u-date">{{ new Date(user.joinDate).toLocaleDateString() }}</p>
+              <p class="u-date">{{ new Date(user.created_at).toLocaleDateString() }}</p>
             </td>
 
             <td>
@@ -150,14 +232,30 @@ const deleteUser = (userId: number, userName: string) => {
       </table>
 
       <div class="pagination-footer">
-        <p class="page-info">Showing <strong>1</strong> to <strong>{{ filteredUsers.length }}</strong> of <strong>{{ users.length }}</strong> users</p>
+        <p class="page-info">
+          Showing page <strong>{{ currentPage }}</strong> 
+          (<strong>{{ users.length }}</strong> rows) out of <strong>{{ totalUsers }}</strong> total users
+        </p>
+        
         <div class="page-controls">
-          <button class="page-btn" disabled>Previous</button>
-          <button class="page-btn">Next</button>
+          <button 
+            class="page-btn" 
+            :disabled="currentPage === 1 || userLoading"
+            @click="fetchUser(currentPage - 1)"
+          >
+            Previous
+          </button>
+          
+          <button 
+            class="page-btn" 
+            :disabled="(currentPage * 10) >= totalUsers || userLoading"
+            @click="fetchUser(currentPage + 1)"
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>
-
   </div>
 </template>
 

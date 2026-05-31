@@ -1,25 +1,44 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { Icon } from '@iconify/vue';
+import { apiClient } from '@/api/api';
 
-// Mock Stats - These would come from your Express API:
-// e.g., SELECT COUNT(*) FROM profile, posts, etc.
-const stats = ref([
-  { label: 'Total Users', value: '1,284', icon: 'heroicons:users-solid', color: '#6366f1' },
-  { label: 'Total Posts', value: '8,432', icon: 'heroicons:chat-bubble-left-right-solid', color: '#8b5cf6' },
-  { label: 'Active Clubs', value: '42', icon: 'heroicons:user-group-solid', color: '#ec4899' },
-  { label: 'Pending Reports', value: '12', icon: 'heroicons:exclamation-triangle-solid', color: '#f59e0b' },
+interface KPIDataInterface {
+  total_club: number | 0,
+  total_post: number | 0,
+  total_user: number | 0,
+  total_forum: number | 0
+}
+
+const KPIData = ref<KPIDataInterface>();
+const KPILoading = ref(true);
+
+const fetchKPIData = async () => {
+  try {
+    
+    const data = await apiClient.get("/admin/dashboard")
+    
+    KPIData.value = data.data?.data;
+  } catch (e) {
+    console.log(e);
+  } finally {
+    KPILoading.value = false;
+  }
+}
+
+type StatItem = {
+  label: string;
+  key: keyof KPIDataInterface; // <-- This is the magic part
+  icon: string;
+  color: string;
+};
+
+const stats = ref<StatItem[]>([
+  { label: 'Total Users', key: "total_user", icon: 'heroicons:users-solid', color: '#6366f1' },
+  { label: 'Total Posts', key: "total_post", icon: 'heroicons:chat-bubble-left-right-solid', color: '#8b5cf6' },
+  { label: 'Active Clubs', key: "total_club", icon: 'heroicons:user-group-solid', color: '#ec4899' },
+  { label: 'Total Forums', key: "total_forum", icon: 'heroicons:chat-bubble-left-right-solid', color: '#f59e0b' },
 ]);
-
-// Navigation Items for Sidebar
-const navItems = [
-  { name: 'Dashboard', icon: 'heroicons:home-solid', active: true },
-  { name: 'User Management', icon: 'heroicons:identification-solid', active: false },
-  { name: 'Club Oversight', icon: 'heroicons:building-library-solid', active: false },
-  { name: 'Moderation Feed', icon: 'heroicons:shield-check-solid', active: false },
-  { name: 'Forum Analytics', icon: 'heroicons:presentation-chart-line-solid', active: false },
-  { name: 'System Settings', icon: 'heroicons:cog-8-tooth-solid', active: false },
-];
 
 // Mock Recent Users from the `profile` table
 const recentUsers = ref([
@@ -28,6 +47,10 @@ const recentUsers = ref([
   { id: 3, name: 'Sarah Tan', email: 'stan8@mail.com', role: 'student', dept: 'Business', status: 'Pending' },
   { id: 4, name: 'Mike Ross', email: 'm.ross@law.edu', role: 'teacher', dept: 'Law', status: 'Active' },
 ]);
+
+onMounted(() => {
+  fetchKPIData();
+})
 </script>
 
 <template>
@@ -44,13 +67,16 @@ const recentUsers = ref([
         </div>
       </header>
 
-      <section class="stats-grid">
+      <div class="kpi-loading" v-if="KPILoading">
+        loading
+      </div>
+      <section class="stats-grid" v-else>
         <div v-for="stat in stats" :key="stat.label" class="stat-card">
           <div class="stat-icon" :style="{ backgroundColor: stat.color + '15', color: stat.color }">
             <Icon :icon="stat.icon" />
           </div>
           <div class="stat-info">
-            <h3>{{ stat.value }}</h3>
+            <h3>{{ KPIData?.[stat.key] ?? "0" }}</h3>
             <p>{{ stat.label }}</p>
           </div>
         </div>

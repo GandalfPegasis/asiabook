@@ -1,53 +1,62 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, watch, onMounted } from 'vue' // <-- added watch
 import { Icon } from '@iconify/vue'
+import { apiClient } from '@/api/api';
 
-// Mocking data joined from: `clubs`, `profile`, and `club_members`
-const clubs = ref([
-  { 
-    id: 1, 
-    title: 'Software Engineering Hub', 
-    description: 'Discussions on full-stack development, JavaFX, Node.js, and building SaaS platforms.',
-    memberCount: 142,
-    clubAdmins: ['John Chen', 'Sarah Tan'],
-    status: 'active'
-  },
-  { 
-    id: 2, 
-    title: 'Taiwan Riders', 
-    description: 'Planning island-loop (Huandao) trips, scooter maintenance, and sharing mountain routes.',
-    memberCount: 84,
-    clubAdmins: ['Alex Wu'],
-    status: 'active'
-  },
-  { 
-    id: 3, 
-    title: 'IDX Quant Trading', 
-    description: 'Algorithmic trading on the Indonesian Stock Exchange, technical analysis.',
-    memberCount: 31,
-    clubAdmins: ['Prof. Lin'],
-    status: 'reviewing' // Example of a newly created club awaiting admin approval
-  },
-  { 
-    id: 4, 
-    title: 'Expat Network', 
-    description: 'Navigating life overseas, from banking and language learning to finding local opportunities.',
-    memberCount: 215,
-    clubAdmins: ['Mike Ross', 'John Chen'],
-    status: 'active'
-  }
-])
+// 1. Interface for the admin objects inside the array
+export interface ClubAdmin {
+  id: number;
+  name: string;
+  email: string;
+}
+
+// 2. Interface for the main club object
+export interface Club {
+  id: number;
+  title: string;
+  description: string;
+  status: 'active' | 'reviewing' | 'suspended'; // Using a union type here makes it super strict!
+  member_count: number;
+  admin_list: ClubAdmin[]; // Array of the ClubAdmin interface
+}
+
+const clubs = ref<Club[]>([]);
+const clubsLoading = ref(false);
 
 const searchQuery = ref('')
 const statusFilter = ref('all')
 
-const filteredClubs = computed(() => {
-  return clubs.value.filter(club => {
-    const matchesSearch = club.title.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-                          club.description.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchesStatus = statusFilter.value === 'all' || club.status === statusFilter.value
-    return matchesSearch && matchesStatus
-  })
+const fetchClubData = async () => {
+  try {
+    clubsLoading.value = true;
+    
+    // Pass the search and status to the server as query parameters
+    const res = await apiClient.get("/admin/club", {
+      params: {
+        search: searchQuery.value || undefined, // Sends undefined if empty (ignores it)
+        status: statusFilter.value === 'all' ? undefined : statusFilter.value
+      }
+    });
+
+    clubs.value = res.data;
+  } catch (e) {
+    console.log(e);
+  } finally {
+    clubsLoading.value = false;
+  }
+};
+
+// Watch for changes in the inputs and re-fetch automatically
+let searchTimeout: any;
+watch([searchQuery, statusFilter], () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    fetchClubData();
+  }, 300); // Waits 300ms after the user stops typing before fetching
+});
+
+onMounted(() => {
+  fetchClubData();
 })
 
 // Moderation Actions
@@ -122,8 +131,7 @@ const deleteClub = (clubId: number, clubTitle: string) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="club in filteredClubs" :key="club.id">
-            
+          <tr v-for="club in clubs" :key="club.id">
             <td class="info-cell">
               <div class="club-icon-wrapper">
                 <Icon icon="heroicons:building-library" class="club-icon" />
@@ -137,16 +145,16 @@ const deleteClub = (clubId: number, clubTitle: string) => {
             <td>
               <div class="metric-badge">
                 <Icon icon="heroicons:users" class="metric-icon" />
-                <span>{{ club.memberCount }}</span>
+                <span>{{ club.member_count }}</span>
               </div>
             </td>
 
             <td>
               <div class="leaders-list">
-                <span v-for="admin in club.clubAdmins" :key="admin" class="leader-chip">
-                  {{ admin }}
+                <span v-for="admin in club.admin_list" :key="admin.id" class="leader-chip">
+                  {{ admin.name }}
                 </span>
-                <span v-if="club.clubAdmins.length === 0" class="no-leaders">No Admins Assigned</span>
+                <span v-if="club.admin_list.length === 0" class="no-leaders">No Admins Assigned</span>
               </div>
             </td>
 
@@ -181,7 +189,7 @@ const deleteClub = (clubId: number, clubTitle: string) => {
 
           </tr>
           
-          <tr v-if="filteredClubs.length === 0">
+          <tr v-if="clubs.length === 0">
             <td colspan="5" class="empty-state">
               <Icon icon="heroicons:building-office-2" class="empty-icon" />
               <p>No clubs found matching your criteria.</p>
