@@ -32,7 +32,7 @@ const router = createRouter({
                 {
                     path: '/post/:id',
                     name: 'post-detail',
-                    component: () => import('../views/HomeView.vue'),
+                    component: () => import('../views/PostDetailView.vue'),
                     meta: { requiresAuth: true }
                 },
                 {

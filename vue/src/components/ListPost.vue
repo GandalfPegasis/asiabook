@@ -10,7 +10,8 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'like', postId: number): void;
   (e: 'share', postId: number): void;
-  (e: 'report', postId: number): void; // Added report event
+  (e: 'report', postId: number): void;
+  (e: 'comment', postId: number): void; // <-- Add this new event
 }>();
 
 // 2. Create a handler for the Share functionality
@@ -77,7 +78,7 @@ const handleShare = async (post: any) => {
           <span>{{ post.likes }}</span>
         </button>
         
-        <button class="action-btn">
+        <button class="action-btn" @click="$emit('comment', post.id)">
           <Icon icon="mdi:comment-outline" class="action-icon" />
           <span>{{ post.comments }}</span>
         </button>

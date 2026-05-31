@@ -43,7 +43,7 @@ const handleDeleteAccount = async () => {
     <header v-if="isAuthenticated" class="app-header">
       <div class="header-content">
         <nav class="navbar">
-          <RouterLink :to="{ name: 'home' }" class="nav-item">
+          <RouterLink :to="{ name: 'home' }" class="nav-item home-link">
             <Icon icon="mdi:home" class="nav-icon" /> 
             <span>Home</span>
           </RouterLink>
@@ -176,7 +176,14 @@ const handleDeleteAccount = async () => {
   color: #1e293b;
 }
 
-.nav-item.router-link-active {
+/* 1. Highlight ANY link when you are exactly on its page (This makes Home work!) */
+.nav-item.router-link-exact-active {
+  color: #6366f1;
+  border-bottom-color: #6366f1;
+}
+
+/* 2. Highlight nested parent links (like Forums -> Thread), but explicitly ignore Home */
+.nav-item.router-link-active:not(.home-link) {
   color: #6366f1;
   border-bottom-color: #6366f1;
 }

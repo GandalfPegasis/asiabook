@@ -8,6 +8,7 @@ const {
     updateLikeCount,
     getCommentsByPostId,
     addComment,
+    getPostById,
 } = require("../dataaccess/postDAO");
 
 // GET /posts - Feed
@@ -94,6 +95,33 @@ router.delete("/:id/like", authMiddleware, async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Failed to unlike post" });
+    }
+});
+
+router.get("/:id", async (req, res) => {
+    const postId = req.params.id;
+
+    try {
+        const post = await getPostById(postId);
+
+        // 1. Check if the post actually exists
+        if (!post) {
+            return res.status(404).json({ error: "Post not found." });
+        }
+
+        // 2. Optional Security: Block users from viewing suspended posts
+        // (Unless you are hitting this from an Admin dashboard!)
+        if (post.status === "suspended") {
+            return res
+                .status(403)
+                .json({ error: "This post has been removed by moderators." });
+        }
+
+        // 3. Send it back to Vue
+        res.json({ success: true, data: post });
+    } catch (error) {
+        console.error("Failed to fetch single post:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
