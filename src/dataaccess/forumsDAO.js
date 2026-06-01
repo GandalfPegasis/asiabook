@@ -55,14 +55,12 @@ const ensureClubColumn = async () => {
 };
 
 ensureClubColumn();
-
 ensureVotesTables();
 
 const getForums = async (opts = {}) => {
     // opts: { userId, clubId }
     const { userId = null, clubId = null } = opts;
     try {
-        // Base select includes total votes and optional user vote
         const params = [];
         let clubFilter = '';
         if (clubId) { clubFilter = 'WHERE f.club_id = ?'; params.push(clubId); }
@@ -124,7 +122,6 @@ const getRepliesByForumId = async (forumId, userId = null) => {
 
         const [rows] = await db.query(sql, params);
         
-        // Build nested tree structure: map all replies by id, then build parent-child relationships
         const replyMap = {};
         const topLevelReplies = [];
         
@@ -177,7 +174,7 @@ const createReply = async (forum_id, post_by, reply_of, content) => {
 
 const upvoteForum = async (forumId, delta = 1) => {
     try {
-        await db.query(`UPDATE forum SET votes = votes + ? WHERE id = ?;`, [delta, forumId]);
+        await db.query(`UPDATE forum SET votes = GREATEST(0, votes + ?) WHERE id = ?;`, [delta, forumId]);
         const [rows] = await db.query(`SELECT votes FROM forum WHERE id = ?;`, [forumId]);
         return rows[0] ? rows[0].votes : null;
     } catch (error) {
@@ -188,7 +185,7 @@ const upvoteForum = async (forumId, delta = 1) => {
 
 const upvoteReply = async (replyId, delta = 1) => {
     try {
-        await db.query(`UPDATE forum_reply SET votes = votes + ? WHERE id = ?;`, [delta, replyId]);
+        await db.query(`UPDATE forum_reply SET votes = GREATEST(0, votes + ?) WHERE id = ?;`, [delta, replyId]);
         const [rows] = await db.query(`SELECT votes FROM forum_reply WHERE id = ?;`, [replyId]);
         return rows[0] ? rows[0].votes : null;
     } catch (error) {
@@ -199,6 +196,7 @@ const upvoteReply = async (replyId, delta = 1) => {
 
 const voteForum = async (userId, forumId, vote) => {
     // vote: 1 or -1
+    const normalizedVote = vote > 0 ? 1 : -1;
     try {
         const conn = await db.getConnection();
         try {
@@ -207,20 +205,19 @@ const voteForum = async (userId, forumId, vote) => {
             const existing = existingRows[0] ? existingRows[0].vote : null;
 
             if (existing === null || existing === undefined) {
-                await conn.query(`INSERT INTO forum_votes (forum_id, user_id, vote) VALUES (?, ?, ?)`, [forumId, userId, vote]);
-                await conn.query(`UPDATE forum SET votes = votes + ? WHERE id = ?`, [vote, forumId]);
-            } else if (existing === vote) {
+                await conn.query(`INSERT INTO forum_votes (forum_id, user_id, vote) VALUES (?, ?, ?)`, [forumId, userId, normalizedVote]);
+            } else if (existing === normalizedVote) {
                 // toggle off
                 await conn.query(`DELETE FROM forum_votes WHERE forum_id = ? AND user_id = ?`, [forumId, userId]);
-                await conn.query(`UPDATE forum SET votes = votes - ? WHERE id = ?`, [vote, forumId]);
             } else {
-                // change vote
-                await conn.query(`UPDATE forum_votes SET vote = ? WHERE forum_id = ? AND user_id = ?`, [vote, forumId, userId]);
-                await conn.query(`UPDATE forum SET votes = votes + ? WHERE id = ?`, [vote * 2, forumId]);
+                // change vote (e.g. +1 straight to -1)
+                await conn.query(`UPDATE forum_votes SET vote = ? WHERE forum_id = ? AND user_id = ?`, [normalizedVote, forumId, userId]);
             }
 
+            const [voteTotals] = await conn.query(`SELECT COALESCE(SUM(vote), 0) AS votes FROM forum_votes WHERE forum_id = ?`, [forumId]);
+            const totalVotes = Math.max(0, voteTotals[0].votes);
+            await conn.query(`UPDATE forum SET votes = ? WHERE id = ?`, [totalVotes, forumId]);
             const [rows2] = await conn.query(`SELECT votes FROM forum WHERE id = ?`, [forumId]);
-            // fetch current user vote
             const [uv] = await conn.query(`SELECT vote FROM forum_votes WHERE forum_id = ? AND user_id = ?`, [forumId, userId]);
             await conn.commit();
             conn.release();
@@ -237,6 +234,7 @@ const voteForum = async (userId, forumId, vote) => {
 };
 
 const voteReply = async (userId, replyId, vote) => {
+    const normalizedVote = vote > 0 ? 1 : -1;
     try {
         const conn = await db.getConnection();
         try {
@@ -245,16 +243,18 @@ const voteReply = async (userId, replyId, vote) => {
             const existing = existingRows[0] ? existingRows[0].vote : null;
 
             if (existing === null || existing === undefined) {
-                await conn.query(`INSERT INTO forum_reply_votes (reply_id, user_id, vote) VALUES (?, ?, ?)`, [replyId, userId, vote]);
-                await conn.query(`UPDATE forum_reply SET votes = votes + ? WHERE id = ?`, [vote, replyId]);
-            } else if (existing === vote) {
+                await conn.query(`INSERT INTO forum_reply_votes (reply_id, user_id, vote) VALUES (?, ?, ?)`, [replyId, userId, normalizedVote]);
+            } else if (existing === normalizedVote) {
+                // toggle off
                 await conn.query(`DELETE FROM forum_reply_votes WHERE reply_id = ? AND user_id = ?`, [replyId, userId]);
-                await conn.query(`UPDATE forum_reply SET votes = votes - ? WHERE id = ?`, [vote, replyId]);
             } else {
-                await conn.query(`UPDATE forum_reply_votes SET vote = ? WHERE reply_id = ? AND user_id = ?`, [vote, replyId, userId]);
-                await conn.query(`UPDATE forum_reply SET votes = votes + ? WHERE id = ?`, [vote * 2, replyId]);
+                // change vote
+                await conn.query(`UPDATE forum_reply_votes SET vote = ? WHERE reply_id = ? AND user_id = ?`, [normalizedVote, replyId, userId]);
             }
 
+            const [voteTotals] = await conn.query(`SELECT COALESCE(SUM(vote), 0) AS votes FROM forum_reply_votes WHERE reply_id = ?`, [replyId]);
+            const totalVotes = Math.max(0, voteTotals[0].votes);
+            await conn.query(`UPDATE forum_reply SET votes = ? WHERE id = ?`, [totalVotes, replyId]);
             const [rows2] = await conn.query(`SELECT votes FROM forum_reply WHERE id = ?`, [replyId]);
             const [uv] = await conn.query(`SELECT vote FROM forum_reply_votes WHERE reply_id = ? AND user_id = ?`, [replyId, userId]);
             await conn.commit();

@@ -34,6 +34,13 @@ const back = () => router.push({ name: 'forums' });
 
 const voteForum = async (delta = 1) => {
   if (!forum.value) return;
+
+  const currentVotes = forum.value.votes || 0;
+
+  if (delta === -1 && currentVotes <= 0) {
+    return;
+  }
+
   try {
     const res = await api.voteForum(forum.value.id, delta);
     forum.value.votes = res.votes;
@@ -133,7 +140,10 @@ onMounted(async () => {
               <Icon icon="mdi:chevron-up" width="28" height="28" />
             </button>
             <span>{{ forum.votes || 0 }}</span>
-            <button type="button" :class="{ active: forum.user_vote === -1 }" @click="voteForum(-1)">
+            <button type="button" :class="{ active: forum.user_vote === -1 }" 
+            @click="voteForum(-1)"
+            :disabled="forum.votes || 0 <= 0"
+            >
               <Icon icon="mdi:chevron-down" width="28" height="28" />
             </button>
           </div>

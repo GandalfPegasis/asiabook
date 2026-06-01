@@ -72,6 +72,8 @@ const load = async () => {
     }
 
     // Check membership; clear saved request if already a member
+    const localFlagExists = localStorage.getItem(storageKey) === 'true';
+
     if (isMember.value) {
       joinRequestSent.value = false;
       localStorage.removeItem(storageKey);
@@ -79,15 +81,17 @@ const load = async () => {
       // Ask server if the current user already has a pending request
       try {
         const status = await api.getClubRequestStatus(clubId);
+
+        const serverSaysRequested = status && (status.requested === true || status.requested === 'true' || status.status === 'pending');
         joinRequestSent.value = !!status.requested;
         if (joinRequestSent.value) localStorage.setItem(storageKey, 'true');
       } catch (e) {
         // Fallback to localStorage if server check fails
-        joinRequestSent.value = localStorage.getItem(storageKey) === 'true';
+        joinRequestSent.value = localFlagExists;
       }
     } else {
       // Not authenticated: rely on localStorage
-      joinRequestSent.value = localStorage.getItem(storageKey) === 'true';
+      joinRequestSent.value = localFlagExists;
     }
     
     if (isAdmin.value) {

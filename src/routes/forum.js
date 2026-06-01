@@ -107,10 +107,11 @@ router.post('/:id/replies', authMiddleware, async (req, res) => {
 router.post('/:id/vote', authMiddleware, async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
-        const delta = parseInt(req.body.delta, 10) || 1;
+        const delta = parseInt(req.body.delta, 10);
         if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+        if (![1, -1].includes(delta)) return res.status(400).json({ error: "Invalid vote value" });
 
-        const result = await voteForum(req.user.id, id, delta > 0 ? 1 : -1);
+        const result = await voteForum(req.user.id, id, delta);
         res.json(result);
     } catch (error) {
         console.error(error);

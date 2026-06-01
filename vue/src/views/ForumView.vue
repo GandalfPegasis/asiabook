@@ -9,6 +9,7 @@ const clubs = ref<any[]>([]);
 const selectedClub = ref<any | null>(null);
 const clubMembers = ref<any[]>([]);
 const selectedClubFilter = ref<number | null>(null);
+const newPostClubId = ref<number | null>(null);
 const clubSearchQuery = ref('');
 const forums = ref<any[]>([]);
 const selectedForum = ref<any | null>(null);
@@ -111,10 +112,11 @@ const createPost = async () => {
     await api.createForum(
       newPostTitle.value.trim(),
       newPostDescription.value.trim() || undefined,
-      selectedClubFilter.value || undefined,
+      newPostClubId.value || undefined,
     );
     newPostTitle.value = '';
     newPostDescription.value = '';
+    newPostClubId.value = null;
     await fetchForums();
   } catch (err) {
     console.error(err);
@@ -135,14 +137,25 @@ const createReply = async (forumId: number) => {
   }
 };
 
-const voteForum = async (forumId: number, delta = 1) => {
+const voteForum = async (forumId: number, targetVote: 1 | -1) => {
+  let item = forums.value.find((x) => x.id === forumId);
+  if (!item && selectedForum.value?.id === forumId) {
+    item = selectedForum.value;
+  }
+
+  if (!item) return;
+
+  const currentVotes = item.votes || 0;
+  const previousVote = item.user_vote || 0;
+
+  if (targetVote === -1 && currentVotes <= 0 && previousVote !== 1) {
+    return;
+  }
+
   try {
-    const res = await api.voteForum(forumId, delta);
-    const item = forums.value.find((x) => x.id === forumId) || selectedForum.value;
-    if (item) {
-      item.votes = res.votes;
-      item.user_vote = res.user_vote || 0;
-    }
+    const res = await api.voteForum(forumId, targetVote);
+    item.votes = Math.max(0, res.votes);
+    item.user_vote = res.user_vote || 0;
   } catch (err) {
     console.error(err);
   }
@@ -182,9 +195,9 @@ const replyTree = computed(() => {
   return roots;
 });
 
-onMounted(() => {
-  fetchClubs();
-  fetchForums();
+onMounted(async () => {
+  await fetchClubs();
+  await fetchForums();
 });
 </script>
 
@@ -212,15 +225,15 @@ onMounted(() => {
             <button
               v-for="club in clubs"
               :key="club.id"
-              :class="{ active: selectedClubFilter === club.id }"
-              @click="selectedClubFilter = selectedClubFilter === club.id ? null : club.id"
+              :class="{ active: newPostClubId === club.id }"
+              @click="newPostClubId = newPostClubId === club.id ? null : club.id"
               class="club-select-btn"
             >
               {{ club.title }}
             </button>
             <button
-              v-if="selectedClubFilter"
-              @click="selectedClubFilter = null"
+              v-if="newPostClubId !== null"
+              @click="newPostClubId = null"
               class="club-select-btn clear"
             >
               Clear
@@ -246,6 +259,17 @@ onMounted(() => {
           <div class="club-list">
             <div v-if="filteredClubs.length === 0" class="no-clubs">
               No clubs found
+            </div>
+            <div
+              class="club-card all-clubs-card"
+              :class="{ active: selectedClubFilter === null }"
+              @click="clearClubFilter"
+            >
+              <div class="club-icon"><Icon icon="mdi:school" /></div>
+              <div>
+                <div class="club-name">All Clubs</div>
+                <div class="club-meta">Show posts from every club</div>
+              </div>
             </div>
             <div
               class="club-card"
@@ -296,7 +320,10 @@ onMounted(() => {
               <div class="thread-vote">
                 <button :class="{ active: post.user_vote === 1 }" @click.stop.prevent="voteForum(post.id, 1)">▲</button>
                 <span>{{ post.votes || 0 }}</span>
-                <button :class="{ active: post.user_vote === -1 }" @click.stop.prevent="voteForum(post.id, -1)">▼</button>
+                <button :class="{ active: post.user_vote === -1 }" 
+                @click.stop.prevent="voteForum(post.id, -1)"
+                :disabled="(post.votes || 0) <= 0"
+                >▼</button>
               </div>
               <div class="thread-content">
                 <div class="thread-title-row">
@@ -326,7 +353,10 @@ onMounted(() => {
             <div class="thread-actions">
               <button :class="{ active: selectedForum.user_vote === 1 }" @click="voteForum(selectedForum.id, 1)">▲</button>
               <span>{{ selectedForum.votes || 0 }}</span>
-              <button :class="{ active: selectedForum.user_vote === -1 }" @click="voteForum(selectedForum.id, -1)">▼</button>
+              <button :class="{ active: selectedForum.user_vote === -1 }" 
+              @click="voteForum(selectedForum.id, -1)"
+              :disabled="(selectedForum.votes || 0) <= 0"
+              >▼</button>
             </div>
           </div>
           <p>{{ selectedForum.description || 'No thread description.' }}</p>
