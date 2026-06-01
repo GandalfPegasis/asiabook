@@ -3,9 +3,9 @@ const mysql = require("mysql2/promise");
 
 // Create a connection pool rather than a single connection
 const pool = mysql.createPool({
-    host: process.env.MYSQL_HOST || "localhost",
-    user: process.env.MYSQL_USER || "root",
-    password: process.env.MYSQL_PASSWORD,
+    host: process.env.MYSQL_HOST || "192.168.1.116",
+    user: process.env.MYSQL_USER || "kenneth",
+    password: process.env.MYSQL_PASSWORD || "kenneth123",
     database: process.env.MYSQL_DATABASE || "asiabook",
 
     // Pool specific configurations

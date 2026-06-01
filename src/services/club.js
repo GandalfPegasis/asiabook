@@ -42,6 +42,14 @@ async function createJoinRequest(profileId, clubId) {
 	return { id: result.insertId };
 }
 
+async function hasPendingRequest(profileId, clubId) {
+	const [rows] = await pool.query(
+		'SELECT id FROM club_join_requests WHERE profile_id = ? AND club_id = ? AND status = "pending"',
+		[profileId, clubId]
+	);
+	return rows.length > 0;
+}
+
 async function getClubJoinRequests(clubId) {
 	const [rows] = await pool.query(
 		`SELECT cjr.id, cjr.profile_id, p.name as user_name, cjr.created_at
@@ -114,6 +122,12 @@ async function deleteClubEvent(eventId, clubId) {
 	return { success: result.affectedRows > 0 };
 }
 
+// Update club details (title, description)
+async function updateClub(clubId, title, description) {
+    const [result] = await pool.query('UPDATE clubs SET title = ?, description = ? WHERE id = ?', [title, description, clubId]);
+    return { success: result.affectedRows > 0 };
+}
+
 module.exports = {
 	getAllClubs,
 	getClubById,
@@ -129,4 +143,6 @@ module.exports = {
 	createClubEvent,
 	updateClubEvent,
 	deleteClubEvent,
+	updateClub,
+	hasPendingRequest,
 };
