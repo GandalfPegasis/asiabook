@@ -1,8 +1,5 @@
 <script setup lang="ts">
-<<<<<<< HEAD
-=======
 import { ref, computed } from 'vue';
->>>>>>> 964dacdf81e96fcb335bc60324b0d6c12e449130
 import { useRouter } from 'vue-router';
 import { api } from '../api/api';
 
