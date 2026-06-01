@@ -3,12 +3,23 @@ const db = require("../database");
 const getPostByProfileId = async (profileId) => {
     try {
         const [postResults] = await db.query(
-            `SELECT posts.id as post_id, post_picture.location, posts.caption
-            FROM posts
-            LEFT JOIN post_picture ON post_picture.post_id = posts.id
-            WHERE posts.posted_by = ?;`,
+            `SELECT 
+                p.id AS post_id, 
+                p.caption,
+                
+                -- Packages all matching picture locations into a single JSON array
+                (
+                    SELECT IFNULL(JSON_ARRAYAGG(location), JSON_ARRAY())
+                    FROM post_picture 
+                    WHERE post_id = p.id
+                ) AS images
+
+            FROM posts p
+            WHERE p.posted_by = ?
+            ORDER BY p.id DESC;`, // Highly recommend sorting newest to oldest!
             [profileId],
         );
+
         return postResults;
     } catch (error) {
         console.error("Error fetching posts by profile ID:", error);
@@ -126,19 +137,29 @@ const getPosts = async (limit, offset, userId) => {
     }
 };
 
-const createPost = async (posted_by, caption) => {
-    try {
-        // Explicitly set likes to 0 when creating a post
-        const sql =
-            "INSERT INTO posts (posted_by, caption, likes) VALUES (?, ?, 0)";
-        const [result] = await db.query(sql, [posted_by, caption]);
-        return result.insertId;
-    } catch (error) {
-        console.error("Error creating post:", error);
-        throw error;
-    }
-};
+async function createPost(posted_by, caption, mediaPaths) {
+    // 1. Insert the main post
+    const [postResult] = await db.query(
+        `INSERT INTO posts (posted_by, caption) 
+         VALUES (?, ?)`,
+        [posted_by, caption],
+    );
 
+    const postId = postResult.insertId;
+
+    // 2. If there are media files, bulk insert them into post_picture
+    if (mediaPaths && mediaPaths.length > 0) {
+        // Create an array of arrays for bulk insertion: [[postId, '/path1.png'], [postId, '/path2.mp4']]
+        const pictureValues = mediaPaths.map((path) => [postId, path]);
+
+        await db.query(
+            `INSERT INTO post_picture (post_id, location) VALUES ?`,
+            [pictureValues],
+        );
+    }
+
+    return postId;
+}
 // --- NEW LIKES METHODS ---
 const updateLikeCount = async (postId, increment) => {
     try {

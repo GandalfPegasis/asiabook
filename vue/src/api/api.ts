@@ -331,4 +331,16 @@ export const api = {
         const response = await apiClient.get(`/profile/${id}/friends`);
         return response.data;
     },
+
+    async markAsRead(contactId: number): Promise<any> {
+        try {
+            // Note: Adjust the URL to match exactly how your backend routes are set up!
+            // Using a POST or PUT request is standard for updating database state.
+            const response = await apiClient.post(`/messages/read/${contactId}`);
+            return response.data;
+        } catch (error) {
+            console.error("Error marking messages as read:", error);
+            throw error;
+        }
+    },
 };

@@ -16,10 +16,28 @@ const triggerFileInput = () => {
   fileInput.value?.click();
 };
 
+// Handle media selection with limits
 const handleFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement;
+  
   if (target.files) {
-    Array.from(target.files).forEach(file => {
+    const newFiles = Array.from(target.files);
+
+    // 1. Enforce the 5-file maximum limit (matching backend Multer config)
+    if (mediaFiles.value.length + newFiles.length > 5) {
+      alert("You can only upload a maximum of 5 files per post.");
+      if (fileInput.value) fileInput.value.value = ''; // Reset input
+      return; 
+    }
+
+    newFiles.forEach(file => {
+      // 2. Enforce the 50MB file size limit
+      const maxSizeInBytes = 50 * 1024 * 1024;
+      if (file.size > maxSizeInBytes) {
+        alert(`The file "${file.name}" is too large. Maximum size is 50MB.`);
+        return;
+      }
+
       mediaFiles.value.push({
         file,
         url: URL.createObjectURL(file),
@@ -27,8 +45,45 @@ const handleFileSelect = (event: Event) => {
       });
     });
   }
+  
   // Reset input to allow selecting the same file again if removed
   if (fileInput.value) fileInput.value.value = '';
+};
+
+// Handle submitting a new post
+const submitPost = async () => {
+    if (!newPostContent.value.trim() && mediaFiles.value.length === 0) return;
+    isPosting.value = true;
+    
+    try {
+        const formData = new FormData();
+        formData.append('caption', newPostContent.value);
+        
+        // Append files to formData under the 'media' key
+        mediaFiles.value.forEach(media => {
+            formData.append('media', media.file); 
+        });
+
+        // Ensure headers explicitly define multipart/form-data
+        await apiClient.post('/posts/', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+
+        // Reset Form
+        newPostContent.value = '';
+        mediaFiles.value.forEach(media => URL.revokeObjectURL(media.url));
+        mediaFiles.value = [];
+        
+        emit('post-created');
+
+    } catch (error) {
+        console.error('Error creating post:', error);
+        alert('Could not post your message. Please try again.');
+    } finally {
+        isPosting.value = false;
+    }
 };
 
 const removeMedia = (index: number) => {
@@ -40,39 +95,6 @@ const removeMedia = (index: number) => {
 onBeforeUnmount(() => {
   mediaFiles.value.forEach(media => URL.revokeObjectURL(media.url));
 });
-
-// Handle submitting a new post
-const submitPost = async () => {
-    if (!newPostContent.value.trim() && mediaFiles.value.length === 0) return;
-    isPosting.value = true;
-    
-    try {
-        const formData = new FormData();
-        formData.append('caption', newPostContent.value);
-        
-        // Append files to formData
-        mediaFiles.value.forEach(media => {
-            formData.append('media', media.file); 
-        });
-
-        await apiClient.post('/posts/', formData);
-
-        // Reset Form
-        newPostContent.value = '';
-        mediaFiles.value.forEach(media => URL.revokeObjectURL(media.url));
-        mediaFiles.value = [];
-        
-        // Notify the parent component that a post was created
-        // so it can refresh its own lists (e.g., the user's profile posts)
-        emit('post-created');
-
-    } catch (error) {
-        console.error('Error creating post:', error);
-        alert('Could not post your message. Please try again.');
-    } finally {
-        isPosting.value = false;
-    }
-};
 </script>
 
 <template>

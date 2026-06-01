@@ -110,11 +110,18 @@ const likePost = async (postId: number) => {
     post.isLiking = false;
   }
 };
+
 // Parent component script
-const handleReport = (postId: number) => {
-  if (confirm("Are you sure you want to report this post to the admins?")) {
-    // Call your API: apiClient.post(`/posts/${postId}/report`)
-    console.log(`Reporting post ${postId}`);
+const handleReport = async (payload: { postId: number; reason: string }) => {
+  try {
+    // Hits the route: POST /posts/:id/report
+    await apiClient.post(`/posts/${payload.postId}/report`, {
+      reason: payload.reason
+    });
+    console.log(`Successfully reported post ${payload.postId} for ${payload.reason}`);
+  } catch (error) {
+    console.error('Failed to report post:', error);
+    alert('There was an error submitting your report.');
   }
 }
 

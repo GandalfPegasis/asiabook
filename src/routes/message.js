@@ -5,6 +5,7 @@ const {
     getMessagesForUser,
     getConversation,
     sendMessage,
+    markMessagesAsRead,
 } = require("../dataaccess/messageDAO");
 const { authMiddleware } = require("../middleware/authMiddleware");
 
@@ -121,7 +122,14 @@ router.post("/conversations/:contactId", async (req, res) => {
         if (receiverSockets) {
             receiverSockets.forEach((clientWs) => {
                 if (clientWs.readyState === 1) {
-                    clientWs.send(JSON.stringify(savedMessage));
+                    // 2. UPDATE THIS WEBSOCKET PAYLOAD
+                    // Wrap the message in the type format the frontend expects
+                    clientWs.send(
+                        JSON.stringify({
+                            type: "chat_message",
+                            payload: savedMessage,
+                        }),
+                    );
                 }
             });
         }
@@ -131,6 +139,42 @@ router.post("/conversations/:contactId", async (req, res) => {
     } catch (err) {
         console.error("Failed to send message:", err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+router.post("/read/:contactId", async (req, res) => {
+    const CURRENT_USER_ID = req.user.id; // The person reading the messages
+    const contactId = parseInt(req.params.contactId, 10); // The person who sent them
+
+    if (isNaN(contactId)) {
+        return res.status(400).json({ error: "Invalid contact ID" });
+    }
+
+    try {
+        // Update the database: Mark messages sent BY the contact, TO the current user, as read.
+        await markMessagesAsRead(contactId, CURRENT_USER_ID);
+
+        // Find the sender's WebSockets and tell them their messages were read
+        const senderSockets = global.activeClients?.get(String(contactId));
+
+        if (senderSockets) {
+            senderSockets.forEach((clientWs) => {
+                if (clientWs.readyState === 1) {
+                    // This matches the `type: 'read_receipt'` we set up in Vue!
+                    clientWs.send(
+                        JSON.stringify({
+                            type: "read_receipt",
+                            reader_id: CURRENT_USER_ID,
+                        }),
+                    );
+                }
+            });
+        }
+
+        res.json({ success: true, message: "Messages marked as read" });
+    } catch (err) {
+        console.error("Failed to mark messages as read:", err);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 

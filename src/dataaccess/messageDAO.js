@@ -76,9 +76,22 @@ const sendMessage = async (senderId, receiverId, content) => {
     }
 };
 
+async function markMessagesAsRead(senderId, receiverId) {
+    // Only update messages where is_read is currently false (0) to save DB effort
+    const [result] = await db.query(
+        `UPDATE messages 
+         SET is_read = 1 
+         WHERE sender_id = ? AND receiver_id = ? AND is_read = 0`,
+        [senderId, receiverId],
+    );
+
+    return result.affectedRows;
+}
+
 module.exports = {
     ensureTableExists,
     getMessagesForUser,
     getConversation,
     sendMessage,
+    markMessagesAsRead,
 };

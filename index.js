@@ -7,7 +7,8 @@ require("dotenv").config();
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
+// app.use(express.static("public"));
+app.use("/uploads", express.static("uploads"));
 
 // 1. Create a core HTTP server using Express
 const server = http.createServer(app);
