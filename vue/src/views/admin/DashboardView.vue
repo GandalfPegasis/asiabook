@@ -4,34 +4,43 @@ import { Icon } from '@iconify/vue';
 import { apiClient } from '@/api/api';
 
 interface KPIDataInterface {
-  total_club: number | 0,
-  total_post: number | 0,
-  total_user: number | 0,
-  total_forum: number | 0
+  total_club: number;
+  total_post: number;
+  total_user: number;
+  total_forum: number;
 }
 
-const KPIData = ref<KPIDataInterface>();
-const KPILoading = ref(true);
-
-const fetchKPIData = async () => {
-  try {
-    
-    const data = await apiClient.get("/admin/dashboard")
-    
-    KPIData.value = data.data?.data;
-  } catch (e) {
-    console.log(e);
-  } finally {
-    KPILoading.value = false;
-  }
+interface RecentUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  dept: string;     // Mapped from 'department'
+  status: string;
 }
 
 type StatItem = {
   label: string;
-  key: keyof KPIDataInterface; // <-- This is the magic part
+  key: keyof KPIDataInterface; 
   icon: string;
   color: string;
 };
+
+interface HealthData {
+  database: 'Online' | 'Offline';
+  apiLatency: number;
+  memoryPercent: number;
+}
+
+// --- STATE ---
+const healthData = ref<HealthData | null>(null);
+const healthLoading = ref(true);
+
+const KPIData = ref<KPIDataInterface>();
+const KPILoading = ref(true);
+
+const recentUsers = ref<RecentUser[]>([]);
+const usersLoading = ref(true);
 
 const stats = ref<StatItem[]>([
   { label: 'Total Users', key: "total_user", icon: 'heroicons:users-solid', color: '#6366f1' },
@@ -40,17 +49,52 @@ const stats = ref<StatItem[]>([
   { label: 'Total Forums', key: "total_forum", icon: 'heroicons:chat-bubble-left-right-solid', color: '#f59e0b' },
 ]);
 
-// Mock Recent Users from the `profile` table
-const recentUsers = ref([
-  { id: 1, name: 'John Chen', email: 'j.chen@school.edu', role: 'student', dept: 'CS', status: 'Active' },
-  { id: 2, name: 'Prof. Lin', email: 'lin_w@faculty.com', role: 'teacher', dept: 'EE', status: 'Active' },
-  { id: 3, name: 'Sarah Tan', email: 'stan8@mail.com', role: 'student', dept: 'Business', status: 'Pending' },
-  { id: 4, name: 'Mike Ross', email: 'm.ross@law.edu', role: 'teacher', dept: 'Law', status: 'Active' },
-]);
+// --- FETCH FUNCTIONS ---
+const fetchKPIData = async () => {
+  try {
+    KPILoading.value = true;
+    const response = await apiClient.get("/admin/dashboard/kpi");
+    KPIData.value = response.data.data;
+  } catch (e) {
+    console.error("Failed to fetch KPI data:", e);
+  } finally {
+    KPILoading.value = false;
+  }
+};
 
+const fetchRecentUsers = async () => {
+  try {
+    usersLoading.value = true;
+    const response = await apiClient.get("/admin/dashboard/recent-users");
+    recentUsers.value = response.data;
+  } catch (e) {
+    console.error("Failed to fetch recent users:", e);
+  } finally {
+    usersLoading.value = false;
+  }
+};
+
+
+// Add the fetch function
+const fetchHealthData = async () => {
+  try {
+    healthLoading.value = true;
+    const response = await apiClient.get("/admin/dashboard/health");
+    healthData.value = response.data;
+  } catch (e) {
+    console.error("Failed to fetch system health:", e);
+    // Provide safe fallbacks if the server actually crashes
+    healthData.value = { database: 'Offline', apiLatency: 0, memoryPercent: 0 };
+  } finally {
+    healthLoading.value = false;
+  }
+};
+
+// --- LIFECYCLE ---
 onMounted(() => {
-  fetchKPIData();
-})
+  // Fire both requests simultaneously for faster loading
+  Promise.all([fetchKPIData(), fetchRecentUsers(), fetchHealthData()]);
+});
 </script>
 
 <template>
@@ -61,14 +105,10 @@ onMounted(() => {
           <h1>Command Center</h1>
           <p>Welcome back, Admin. Here is what's happening today.</p>
         </div>
-        <div class="header-actions">
-          <button class="icon-btn"><Icon icon="heroicons:bell" /></button>
-          <button class="primary-btn">Generate Report</button>
-        </div>
       </header>
 
       <div class="kpi-loading" v-if="KPILoading">
-        loading
+        <Icon icon="eos-icons:loading" class="spin-icon" /> Loading Stats...
       </div>
       <section class="stats-grid" v-else>
         <div v-for="stat in stats" :key="stat.label" class="stat-card">
@@ -89,7 +129,11 @@ onMounted(() => {
             <button class="text-btn">View All</button>
           </div>
           
-          <table class="admin-table">
+          <div v-if="usersLoading" class="table-loading">
+             <Icon icon="eos-icons:loading" class="spin-icon" /> Loading Users...
+          </div>
+
+          <table class="admin-table" v-else>
             <thead>
               <tr>
                 <th>User</th>
@@ -103,7 +147,7 @@ onMounted(() => {
               <tr v-for="user in recentUsers" :key="user.id">
                 <td>
                   <div class="user-cell">
-                    <span class="user-initials">{{ user.name.charAt(0) }}</span>
+                    <span class="user-initials">{{ user.name.charAt(0).toUpperCase() }}</span>
                     <div>
                       <p class="u-name">{{ user.name }}</p>
                       <p class="u-email">{{ user.email }}</p>
@@ -121,27 +165,66 @@ onMounted(() => {
                   <button class="action-icon"><Icon icon="heroicons:ellipsis-horizontal" /></button>
                 </td>
               </tr>
+              <tr v-if="recentUsers.length === 0">
+                <td colspan="5" style="text-align: center; color: #64748b;">No recent users found.</td>
+              </tr>
             </tbody>
           </table>
         </div>
 
         <div class="data-card side-info">
           <h2>System Health</h2>
-          <div class="health-item">
-            <div class="health-meta">
-              <span>Database (MySQL)</span>
-              <span class="online">Online</span>
-            </div>
-            <div class="health-bar"><div class="bar-fill" style="width: 100%"></div></div>
+          
+          <div v-if="healthLoading" class="table-loading">
+            <Icon icon="eos-icons:loading" class="spin-icon" /> Checking systems...
           </div>
-          <div class="health-item">
-            <div class="health-meta">
-              <span>Express API Latency</span>
-              <span>24ms</span>
+          
+          <div v-else>
+            <div class="health-item">
+              <div class="health-meta">
+                <span>Database (MySQL)</span>
+                <span :class="healthData?.database === 'Online' ? 'online' : 'offline'">
+                  {{ healthData?.database }}
+                </span>
+              </div>
+              <div class="health-bar">
+                <div class="bar-fill" 
+                    :style="{ 
+                      width: '100%', 
+                      background: healthData?.database === 'Online' ? '#10b981' : '#ef4444' 
+                    }">
+                </div>
+              </div>
             </div>
-            <div class="health-bar"><div class="bar-fill" style="width: 15%; background: #10b981"></div></div>
+            
+            <div class="health-item">
+              <div class="health-meta">
+                <span>Express API Latency</span>
+                <span>{{ healthData?.apiLatency }}ms</span>
+              </div>
+              <div class="health-bar">
+                <div class="bar-fill" 
+                    :style="{ 
+                      width: Math.min((healthData?.apiLatency || 0) / 3, 100) + '%', 
+                      background: (healthData?.apiLatency || 0) < 100 ? '#10b981' : (healthData?.apiLatency || 0) < 300 ? '#f59e0b' : '#ef4444' 
+                    }">
+                </div>
+              </div>
+            </div>
+
+            <div class="health-item">
+              <div class="health-meta">
+                <span>Node.js Memory Heap</span>
+                <span>{{ healthData?.memoryPercent }}%</span>
+              </div>
+              <div class="health-bar">
+                <div class="bar-fill" :style="{ width: (healthData?.memoryPercent || 0) + '%', background: '#6366f1' }"></div>
+              </div>
+            </div>
+            
+            <p class="health-note" v-if="healthData?.database === 'Online'">All systems operational.</p>
+            <p class="health-note" v-else style="color: #ef4444;">Warning: Database connection lost.</p>
           </div>
-          <p class="health-note">All systems operational. Cascading deletes enabled for forum nodes.</p>
         </div>
       </section>
     </main>
@@ -165,6 +248,24 @@ onMounted(() => {
   min-height: 100vh;
   background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.admin-container h1, 
+.admin-container h2, 
+.admin-container h3 {
+  color: #0f172a;
+}
+
+.admin-container p,
+.admin-container td,
+.admin-container th,
+.admin-container span {
+  color: #64748b;
+}
+
+/* Ensure the dark text stands out in the table */
+.u-name, .stat-info h3, .card-header h2 {
+  color: #0f172a !important;
 }
 
 /* SIDEBAR STYLES */

@@ -48,4 +48,31 @@ const totalForumKPI = async () => {
     }
 };
 
-module.exports = { totalUsersKPI, totalPostKPI, totalClubsKPI, totalForumKPI };
+const getRecentUser = async () => {
+    try {
+        const [recentUsers] = await db.query(`
+            SELECT 
+                id, 
+                name, 
+                email, 
+                role, 
+                department as dept, 
+                'Active' as status 
+            FROM profile 
+            ORDER BY created_at DESC 
+            LIMIT 5
+        `);
+
+        return recentUsers;
+    } catch (e) {
+        throw e;
+    }
+};
+
+module.exports = {
+    totalUsersKPI,
+    totalPostKPI,
+    totalClubsKPI,
+    totalForumKPI,
+    getRecentUser,
+};

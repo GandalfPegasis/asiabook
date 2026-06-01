@@ -1,7 +1,17 @@
 import { ref, computed } from 'vue';
 
+// It's a good practice to capitalize interfaces and export them in case other components need them
+export interface UserInterface {
+    department: string,
+    email: string,
+    id: number,
+    name: string,
+    role: string
+}
+
+// Global state outside the function so it persists across component usages
 const isAuthenticated = ref(false);
-const user = ref<any>(null);
+const user = ref<UserInterface | null>(null);
 const token = ref<string | null>(null);
 
 export function useAuth() {
@@ -33,6 +43,8 @@ export function useAuth() {
             token.value = data.token;
             user.value = data.user;
             isAuthenticated.value = true;
+
+            console.log("user data", data.user);
 
             localStorage.setItem('auth_token', data.token);
             localStorage.setItem('auth_user', JSON.stringify(data.user));
@@ -69,6 +81,27 @@ export function useAuth() {
             return { success: false, error: error instanceof Error ? error.message : 'Signup failed' };
         }
     };
+
+    // FIXED: Uses the reactive state first, then safely parses localStorage if needed
+    const getUserId = () => {
+        // Prefer checking the already loaded reactive state
+        if (user.value?.id) {
+            return user.value.id;
+        }
+
+        // Fallback to local storage (must parse the JSON string)
+        const storedUser = localStorage.getItem("auth_user");
+        if (storedUser) {
+            try {
+                const parsedUser = JSON.parse(storedUser) as UserInterface;
+                return parsedUser.id ?? null;
+            } catch (e) {
+                console.error("Failed to parse user from local storage", e);
+                return null;
+            }
+        }
+        return null;
+    }
 
     const logout = () => {
         token.value = null;
@@ -109,5 +142,6 @@ export function useAuth() {
         signup,
         logout,
         deleteAccount,
+        getUserId // FIXED: Added this to the exports
     };
 }

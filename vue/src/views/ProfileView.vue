@@ -28,7 +28,7 @@
           </div>
         </div>
 
-        <div class="header-actions" v-if="!profileId">
+        <div class="header-actions" v-if="!route.params.id">
           <button @click="goToEditProfile" class="button-secondary">
             <Icon icon="mdi:pencil-outline" class="btn-icon" />
             <span>Edit Profile</span>
@@ -106,9 +106,9 @@
         <!-- Right Column Structure -->
         <div class="right-column">
             <section class="posts-section card-box">
-                <h2>{{ profileId ? `${users.name.split(' ')[0]}'s Posts` : 'My Posts' }}</h2>
+                <h2>{{ route.params.id ? `${users.name.split(' ')[0]}'s Posts` : 'My Posts' }}</h2>
                 
-                <CreatePostForm v-if="!profileId" @post-created="fetchProfile" />
+                <CreatePostForm v-if="!route.params.id" @post-created="fetchProfile" />
 
                 <div v-if="formattedProfilePosts.length > 0">
                   <ListPost :posts="formattedProfilePosts" @like="handleLike" />
@@ -134,6 +134,9 @@ import { Icon } from '@iconify/vue';
 import { apiClient } from '@/api/api';
 import CreatePostForm from '../components/CreatePostForm.vue';
 import ListPost from '../components/ListPost.vue'; 
+
+// IMPORT YOUR AUTH COMPOSABLE (Adjust the path if needed)
+import { useAuth } from '@/composables/useAuth'; 
 
 interface Post {
   post_id: number;
@@ -168,6 +171,7 @@ interface FriendData {
 
 const route = useRoute();
 const router = useRouter(); 
+const { getUserId } = useAuth(); // Destructure getUserId
 
 const users = ref<User | null>(null);
 const isLoading = ref(true);
@@ -193,7 +197,6 @@ const fetchProfile = async () => {
   isLoading.value = true;
   error.value = null;
   try {
-    // Read directly from the route HERE, so it is always 100% accurate!
     const currentId = route.params.id; 
     const endpoint = currentId ? `/profile/${currentId}` : '/profile';
     
@@ -210,7 +213,6 @@ const fetchFriends = async () => {
   isLoadingFriends.value = true;
   friendsError.value = null;
   try {
-    // Read directly from the route HERE as well
     const currentId = route.params.id;
     const endpoint = currentId ? `/profile/${currentId}/friends` : `/profile/friends`;
     
@@ -224,9 +226,7 @@ const fetchFriends = async () => {
   }
 };
 
-// Map the profile posts to match the schema expected by ListPost.vue
 const formattedProfilePosts = computed(() => {
-    console.log(users.value);
     if (!users.value || !users.value.posts) return [];
     
     return users.value.posts.map(post => ({
@@ -243,16 +243,10 @@ const formattedProfilePosts = computed(() => {
     }));
 });
 
-// Handle likes triggered from the ListPost component
 const handleLike = async (postId: number) => {
   try {
-    // Basic implementation for like logic on profile page
-    // Note: Since 'formattedProfilePosts' is computed, you normally want to mutate the raw 'users.value.posts'
-    // For simplicity, we just trigger the API. To see immediate UI changes, 
-    // you might want to re-fetch the profile or find the post in users.value.posts and increment.
     await apiClient.post(`/posts/${postId}/like`);
     
-    // Quick optimistic update on the source data
     const targetPost = users.value?.posts.find(p => p.post_id === postId);
     if (targetPost) {
       targetPost.likes = (targetPost.likes || 0) + 1;
@@ -262,18 +256,33 @@ const handleLike = async (postId: number) => {
   }
 };
 
-onMounted(() => {
+// --- NEW LOGIC: Check Route and Redirect ---
+const handleRouteChange = () => {
+  const currentUserId = getUserId();
+  const routeIdParam = route.params.id;
+
+  // If there is an ID in the URL and it matches the logged-in user...
+  if (routeIdParam && parseInt(routeIdParam as string, 10) === currentUserId) {
+    // Redirect to the base profile page (this removes the /:id from the URL)
+    router.replace('/profile'); 
+    return; // Stop execution here. The watcher will re-trigger this function after the URL changes.
+  }
+
+  // If it doesn't match, or there's no ID, fetch normally
   fetchProfile();
   fetchFriends();
+};
+
+onMounted(() => {
+  handleRouteChange();
 });
 
 watch(
   () => route.params.id, 
   () => {
-      fetchProfile();
-      fetchFriends();
-    }
-)
+    handleRouteChange();
+  }
+);
 </script>
 
 <style scoped>
