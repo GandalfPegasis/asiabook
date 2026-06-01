@@ -1,18 +1,65 @@
 const router = require("express").Router();
+const path = require("path");
+const multer = require("multer");
 const { authMiddleware } = require("../middleware/authMiddleware");
 
 // Import all methods from your DAO
 const {
     getPosts,
-    createPost,
+    createPost, // Note: You'll need to update this DAO method to save file URLs!
     updateLikeCount,
     getCommentsByPostId,
     addComment,
     getPostById,
 } = require("../dataaccess/postDAO");
 
-// GET /posts - Feed
+// --- MULTER STORAGE CONFIGURATION ---
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        // Files will be saved in an 'uploads' directory. Ensure this folder exists.
+        cb(null, "uploads/");
+    },
+    filename: function (req, file, cb) {
+        // Generates a unique filename using a timestamp + random number
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(
+            null,
+            file.fieldname +
+                "-" +
+                uniqueSuffix +
+                path.extname(file.originalname),
+        );
+    },
+});
 
+// --- FILE FILTER FOR IMAGES & VIDEOS ---
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|mov|avi|mkv/;
+    const extname = allowedTypes.test(
+        path.extname(file.originalname).toLowerCase(),
+    );
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+        return cb(null, true);
+    } else {
+        cb(
+            new Error(
+                "Only images (jpeg, jpg, png, gif, webp) and videos (mp4, mov, avi, mkv) are allowed.",
+            ),
+        );
+    }
+};
+
+const upload = multer({
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 50 * 1024 * 1024, // 50MB maximum limit to accommodate video uploads
+    },
+});
+
+// GET /posts - Feed
 router.get("/", async (req, res) => {
     try {
         const userId = req.user ? req.user.id : null;
@@ -55,17 +102,28 @@ router.get("/", async (req, res) => {
     }
 });
 
-// POST /posts - Create Post
-router.post("/", authMiddleware, async (req, res) => {
+// POST /posts - Create Post (Modified to accept files)
+// 'media' is the form field key name your frontend must use. Max 5 files per post.
+router.post("/", authMiddleware, upload.array("media", 5), async (req, res) => {
     const { caption } = req.body;
-    const posted_by = req.user.id; // From your authMiddleware
-
-    // TODO accept images or files
+    const posted_by = req.user.id;
 
     try {
-        const postId = await createPost(posted_by, caption);
+        // Collect relative web paths for all successfully uploaded files
+        // e.g., ["/uploads/media-171523...png", "/uploads/media-171523...mp4"]
+        const mediaPaths = req.files
+            ? req.files.map((file) => `/uploads/${file.filename}`)
+            : [];
 
-        res.status(201).json({ message: "Post created", id: postId });
+        // CRITICAL: You must modify createPost in your DAO to accept this third argument
+        // and stringify or pass it to your DB schema (e.g., JSON column or junction table)
+        const postId = await createPost(posted_by, caption, mediaPaths);
+
+        res.status(201).json({
+            message: "Post created successfully",
+            id: postId,
+            media: mediaPaths,
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Failed to create post" });
@@ -110,7 +168,6 @@ router.get("/:id", async (req, res) => {
         }
 
         // 2. Optional Security: Block users from viewing suspended posts
-        // (Unless you are hitting this from an Admin dashboard!)
         if (post.status === "suspended") {
             return res
                 .status(403)

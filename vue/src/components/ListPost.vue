@@ -35,6 +35,13 @@ const handleShare = async (post: any) => {
     emit('share', post.id); 
   }
 };
+
+const isVideo = (url: string) => {
+  if (!url) return false;
+  const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
+  const lowerUrl = url.toLowerCase();
+  return videoExtensions.some(ext => lowerUrl.endsWith(ext));
+};
 </script>
 
 <template>
@@ -57,14 +64,25 @@ const handleShare = async (post: any) => {
       <p class="post-caption">{{ post.caption }}</p>
       
       <div v-if="post.images && post.images.length > 0" class="post-images" :data-count="post.images.length">
-        <img 
-          v-for="(imgUrl, index) in post.images" 
-          :key="index" 
-          :src="`http://localhost:3000/img/${imgUrl}`" 
-          alt="Post attachment" 
-          class="post-image"
-          @error="(e) => (e.target as HTMLElement).classList.add('image-fallback')"
-        />
+        <template v-for="(mediaUrl, index) in post.images" :key="index">
+          
+          <video 
+            v-if="isVideo(mediaUrl)"
+            :src="`http://localhost:3000${mediaUrl}`"
+            class="post-media"
+            controls
+            preload="metadata"
+          ></video>
+          
+          <img 
+            v-else
+            :src="`http://localhost:3000${mediaUrl}`" 
+            alt="Post attachment" 
+            class="post-media"
+            @error="(e) => (e.target as HTMLElement).classList.add('image-fallback')"
+          />
+          
+        </template>
       </div>
 
       <div class="post-actions">
@@ -195,11 +213,16 @@ const handleShare = async (post: any) => {
 .post-images[data-count="3"], 
 .post-images[data-count="4"] { grid-template-columns: 1fr 1fr; }
 
-.post-image {
+.post-media {
   width: 100%;
   height: 280px;
   object-fit: cover;
   background-color: #f1f5f9;
+}
+video.post-media {
+  /* This ensures videos don't stretch weirdly, keeping their aspect ratio inside the grid */
+  object-fit: contain; 
+  background-color: #0f172a; /* Dark background looks better for letterboxed videos */
 }
 
 .image-fallback {

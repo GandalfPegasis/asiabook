@@ -82,11 +82,18 @@
             </div>
 
             <ul v-else-if="friends?.friends?.length > 0" class="friends-list">
-              <li v-for="friend in friends.friends" :key="friend.id" class="friend-item">
-                <div class="friend-avatar">
-                  {{ friend.name.charAt(0).toUpperCase() }}
-                </div>
-                <span class="friend-name">{{ friend.name }}</span>
+              <li v-for="friend in friends.friends" :key="friend.id">
+                
+                <RouterLink 
+                  :to="{ name: 'profile', params: { id: friend.id } }" 
+                  class="friend-item"
+                >
+                  <div class="friend-avatar">
+                    {{ friend.name.charAt(0).toUpperCase() }}
+                  </div>
+                  <span class="friend-name">{{ friend.name }}</span>
+                </RouterLink>
+
               </li>
             </ul>
 
@@ -104,7 +111,7 @@
                 <CreatePostForm v-if="!profileId" @post-created="fetchProfile" />
 
                 <div v-if="formattedProfilePosts.length > 0">
-                    <ListPost :posts="formattedProfilePosts" @like="handleLike" />
+                  <ListPost :posts="formattedProfilePosts" @like="handleLike" />
                 </div>
                 
                 <div v-else class="empty-posts">
@@ -121,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router'; 
 import { Icon } from '@iconify/vue';
 import { apiClient } from '@/api/api';
@@ -134,6 +141,7 @@ interface Post {
   caption: string;
   created_at?: string;
   likes?: number;
+  images: string[],
   comment_count?: number;
 }
 
@@ -160,7 +168,6 @@ interface FriendData {
 
 const route = useRoute();
 const router = useRouter(); 
-const profileId = route.params.id as string | undefined;
 
 const users = ref<User | null>(null);
 const isLoading = ref(true);
@@ -186,7 +193,10 @@ const fetchProfile = async () => {
   isLoading.value = true;
   error.value = null;
   try {
-    const endpoint = profileId ? `/profile/${profileId}` : '/profile';
+    // Read directly from the route HERE, so it is always 100% accurate!
+    const currentId = route.params.id; 
+    const endpoint = currentId ? `/profile/${currentId}` : '/profile';
+    
     const response = await apiClient.get<User>(endpoint);
     users.value = response.data;
   } catch (err) {
@@ -200,7 +210,10 @@ const fetchFriends = async () => {
   isLoadingFriends.value = true;
   friendsError.value = null;
   try {
-    const endpoint = profileId ? `/profile/${profileId}/friends` : `/profile/friends`;
+    // Read directly from the route HERE as well
+    const currentId = route.params.id;
+    const endpoint = currentId ? `/profile/${currentId}/friends` : `/profile/friends`;
+    
     const response = await apiClient.get<FriendData>(endpoint);
     friends.value = response.data;
   } catch (err) {
@@ -221,7 +234,7 @@ const formattedProfilePosts = computed(() => {
         author: users.value!.name,
         role: users.value!.role || 'Member',
         caption: post.caption,
-        images: post.location || [],
+        images: post.images || [],
         timeAgo: formatDate(post.created_at) || 'Recently',
         likes: post.likes || 0,
         comments: post.comment_count || 0,
@@ -253,6 +266,14 @@ onMounted(() => {
   fetchProfile();
   fetchFriends();
 });
+
+watch(
+  () => route.params.id, 
+  () => {
+      fetchProfile();
+      fetchFriends();
+    }
+)
 </script>
 
 <style scoped>
