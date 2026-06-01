@@ -68,7 +68,7 @@ const gotoProfile = (id?: number) => {
     </div>
     <div class="reply-content">{{ reply.content }}</div>
     <div class="reply-actions">
-      <button @click.prevent="toggleReplyComposer">
+      <button type="button" @click="toggleReplyComposer">
         {{ showReplyComposer ? 'Cancel' : 'Reply' }}
       </button>
     </div>
@@ -82,6 +82,7 @@ const gotoProfile = (id?: number) => {
       ></textarea>
       <div class="composer-actions">
         <button 
+          type="button"
           @click="submitNestedReply" 
           :disabled="isSubmittingReply || !replyContent.trim()"
           class="btn-submit"
