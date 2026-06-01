@@ -112,7 +112,7 @@ const joinClub = async () => {
   }
 };
 
-const requestJoinClub = async () => {mysql -u your_user -p your_database < fix-club-events-table.sql
+const requestJoinClub = async () => {
   // Optimistic UI: mark as requested immediately
   joinRequestSent.value = true;
   localStorage.setItem(storageKey, 'true');

@@ -98,22 +98,20 @@ const handleDeleteAccount = async () => {
                   <span>My Profile</span>
                 </router-link>
 
+                <router-link 
+                  :to="{ name: 'settings' }" 
+                  class="dropdown-item"
+                  @click="showProfileMenu = false">
+                  <Icon icon="mdi:cog-outline" />
+                  <span>Settings</span>
+                </router-link>
+
                 <button 
                   class="dropdown-item logout"
                   @click="handleLogout">
                   <Icon icon="mdi:logout" />
                   <span>Sign Out</span>
-                </button>
-
-                <div class="dropdown-divider"></div>
-
-                <button 
-                  class="dropdown-item delete"
-                  @click="handleDeleteAccount"
-                  :disabled="isDeletingAccount">
-                  <Icon icon="mdi:trash-can" />
-                  <span>{{ isDeletingAccount ? 'Deleting...' : 'Delete Account' }}</span>
-                </button>
+              </button>
               </div>
             </transition>
           </div>
