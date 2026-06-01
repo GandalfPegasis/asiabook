@@ -1,13 +1,19 @@
 <script setup lang="ts">
+<<<<<<< HEAD
+=======
+import { ref, computed } from 'vue';
+>>>>>>> 964dacdf81e96fcb335bc60324b0d6c12e449130
 import { useRouter } from 'vue-router';
 import { api } from '../api/api';
 
-//defineOptions?.({ name: 'ReplyNode' });
-
 const props = defineProps<{ reply: any; forumId: number }>();
-const emit = defineEmits(['reply-to']);
+const emit = defineEmits(['reply-posted']);
 
 const router = useRouter();
+const showReplyComposer = ref(false);
+const replyContent = ref('');
+const isSubmittingReply = ref(false);
+const replyError = ref<string | null>(null);
 
 const vote = async (delta: number) => {
   try {
@@ -20,8 +26,30 @@ const vote = async (delta: number) => {
   }
 };
 
-const onReply = () => {
-  emit('reply-to', props.reply.id);
+const toggleReplyComposer = () => {
+  showReplyComposer.value = !showReplyComposer.value;
+  if (!showReplyComposer.value) {
+    replyContent.value = '';
+    replyError.value = null;
+  }
+};
+
+const submitNestedReply = async () => {
+  if (!replyContent.value.trim()) return;
+  replyError.value = null;
+  isSubmittingReply.value = true;
+  
+  try {
+    await api.createReply(props.forumId, replyContent.value.trim(), props.reply.id);
+    replyContent.value = '';
+    showReplyComposer.value = false;
+    emit('reply-posted');
+  } catch (err) {
+    console.error(err);
+    replyError.value = 'Could not post your reply. Please try again.';
+  } finally {
+    isSubmittingReply.value = false;
+  }
 };
 
 const gotoProfile = (id?: number) => {
@@ -43,16 +71,39 @@ const gotoProfile = (id?: number) => {
     </div>
     <div class="reply-content">{{ reply.content }}</div>
     <div class="reply-actions">
-      <button @click.prevent="onReply">Reply</button>
+      <button type="button" @click="toggleReplyComposer">
+        {{ showReplyComposer ? 'Cancel' : 'Reply' }}
+      </button>
     </div>
 
-    <div class="reply-children" v-if="reply.children && reply.children.length">
+    <!-- Nested Reply Composer -->
+    <div v-if="showReplyComposer" class="nested-reply-composer">
+      <textarea
+        v-model="replyContent"
+        placeholder="Write a reply to this comment..."
+        :disabled="isSubmittingReply"
+      ></textarea>
+      <div class="composer-actions">
+        <button 
+          type="button"
+          @click="submitNestedReply" 
+          :disabled="isSubmittingReply || !replyContent.trim()"
+          class="btn-submit"
+        >
+          {{ isSubmittingReply ? 'Posting...' : 'Post Reply' }}
+        </button>
+      </div>
+      <p v-if="replyError" class="error-text">{{ replyError }}</p>
+    </div>
+
+    <!-- Nested Children -->
+    <div v-if="reply.children && reply.children.length" class="reply-children">
       <ReplyNode
         v-for="child in reply.children"
         :key="child.id"
         :reply="child"
         :forumId="forumId"
-        @reply-to="$emit('reply-to', $event)"
+        @reply-posted="$emit('reply-posted')"
       />
     </div>
   </div>
@@ -123,11 +174,13 @@ const gotoProfile = (id?: number) => {
   justify-content: center; 
   font-size: 0.85rem;
 }
+
 .votes button:hover {
   color: #4f46e5;
   background: rgba(79, 70, 229, 0.1);
   border-radius: 50%;
 }
+
 .votes button.active { 
   color: #4f46e5; 
 }
@@ -147,12 +200,14 @@ const gotoProfile = (id?: number) => {
   color: #374151; 
   font-size: 0.95rem; 
   line-height: 1.5; 
+  word-break: break-word;
 }
 
 .reply-actions { 
   margin-left: 48px; 
   font-size: 13px; 
 }
+
 .reply-actions button { 
   background: transparent; 
   border: none; 
@@ -162,14 +217,101 @@ const gotoProfile = (id?: number) => {
   padding: 0;
   transition: all 0.15s ease; 
 }
+
 .reply-actions button:hover { 
   color: #4f46e5; 
   text-decoration: underline; 
 }
 
+/* Nested Reply Composer */
+.nested-reply-composer {
+  margin-left: 48px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.nested-reply-composer textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  resize: vertical;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.nested-reply-composer textarea:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.nested-reply-composer textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.composer-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-submit {
+  padding: 6px 16px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: #4338ca;
+  transform: translateY(-1px);
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-text {
+  margin-top: 8px;
+  color: #ef4444;
+  font-size: 0.85rem;
+}
+
+/* Nested Children Container */
 .reply-children { 
   margin-left: 48px; 
-  margin-top: 12px; 
+  margin-top: 12px;
+}
+
+/* Indentation for deeply nested replies */
+.reply-children .reply-item {
+  margin-left: 0;
+}
+
+.reply-children .reply-item .reply-meta,
+.reply-children .reply-item .reply-content,
+.reply-children .reply-item .reply-actions {
+  margin-left: 0 !important;
+}
+
+.reply-children .reply-item .reply-meta {
+  padding-left: 0;
 }
 </style>
 
