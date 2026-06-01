@@ -209,4 +209,35 @@ router.delete('/:id/events/:eventId', authMiddleware, async (req, res) => {
     }
 });
 
+// Check if current user has a pending join request
+router.get('/:id/request-status', authMiddleware, async (req, res) => {
+    try {
+        const clubId = req.params.id;
+        const profileId = req.user.id;
+        const requested = await clubService.hasPendingRequest(profileId, clubId);
+        res.json({ requested });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Update club (admin-only)
+router.put('/:id', authMiddleware, async (req, res) => {
+    try {
+        const clubId = req.params.id;
+        const { title, description } = req.body;
+
+        const members = await clubService.getClubMembers(clubId);
+        const isAdmin = members.some(m => m.profile_id === req.user.id && m.role === 'admin');
+        if (!isAdmin) return res.status(403).json({ error: 'Not authorized' });
+
+        const result = await clubService.updateClub(clubId, title, description);
+        res.json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 module.exports = router;

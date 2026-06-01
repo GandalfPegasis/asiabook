@@ -61,6 +61,11 @@ const createReply = async () => {
   }
 };
 
+const onReplyPosted = async () => {
+  if (!forum.value) return;
+  await load(forum.value.id);
+};
+
 const scrollToReplyFromHash = async () => {
   await nextTick();
   if (route.hash && route.hash.startsWith('#reply-')) {
@@ -148,7 +153,7 @@ onMounted(async () => {
         
         <div v-else class="reply-list">
           <div v-for="reply in replies" :key="reply.id" class="reply-root">
-            <ReplyNode :reply="reply" :forumId="forum.id" />
+            <ReplyNode :reply="reply" :forumId="forum.id" @reply-posted="onReplyPosted" />
           </div>
         </div>
 

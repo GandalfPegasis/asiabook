@@ -26,6 +26,13 @@ const eventForm = ref({
   location: ''
 });
 
+// About modal state
+const showAboutModal = ref(false);
+const aboutForm = ref({
+  title: '',
+  description: ''
+});
+
 // Get current user info
 onMounted(async () => {
   try {
@@ -55,12 +62,31 @@ const load = async () => {
     members.value = await api.getClubMembers(clubId);
     events.value = await api.getClubEvents(clubId);
     
-    // Check if user joined - if so, clear the request sent state
+    // Ensure we have current user info (best-effort)
+    if (!currentUser.value) {
+      try {
+        currentUser.value = await api.getProfile();
+      } catch (e) {
+        // ignore - user may be unauthenticated
+      }
+    }
+
+    // Check membership; clear saved request if already a member
     if (isMember.value) {
       joinRequestSent.value = false;
       localStorage.removeItem(storageKey);
+    } else if (currentUser.value) {
+      // Ask server if the current user already has a pending request
+      try {
+        const status = await api.getClubRequestStatus(clubId);
+        joinRequestSent.value = !!status.requested;
+        if (joinRequestSent.value) localStorage.setItem(storageKey, 'true');
+      } catch (e) {
+        // Fallback to localStorage if server check fails
+        joinRequestSent.value = localStorage.getItem(storageKey) === 'true';
+      }
     } else {
-      // Check if request was already sent (from localStorage)
+      // Not authenticated: rely on localStorage
       joinRequestSent.value = localStorage.getItem(storageKey) === 'true';
     }
     
@@ -84,12 +110,16 @@ const joinClub = async () => {
 };
 
 const requestJoinClub = async () => {
+  // Optimistic UI: mark as requested immediately
+  joinRequestSent.value = true;
+  localStorage.setItem(storageKey, 'true');
   try {
     await api.requestJoinClub(clubId);
-    joinRequestSent.value = true;
-    localStorage.setItem(storageKey, 'true');
   } catch (err) {
     console.error('Failed to request join:', err);
+    // revert UI state on failure
+    joinRequestSent.value = false;
+    localStorage.removeItem(storageKey);
   }
 };
 
@@ -172,6 +202,28 @@ const deleteEvent = async (eventId: number) => {
   }
 };
 
+const openAboutModal = () => {
+  aboutForm.value = {
+    title: club.value?.title || '',
+    description: club.value?.description || ''
+  };
+  showAboutModal.value = true;
+};
+
+const closeAboutModal = () => {
+  showAboutModal.value = false;
+};
+
+const saveAbout = async () => {
+  try {
+    await api.updateClub(clubId, aboutForm.value);
+    await load();
+    closeAboutModal();
+  } catch (err) {
+    console.error('Failed to save about:', err);
+  }
+};
+
 const back = () => router.push({ name: 'clubs' });
 
 const gotoProfile = (profileId: number) => {
@@ -216,7 +268,7 @@ onMounted(() => {
         </div>
         <div class="club-actions">
           <button v-if="!isMember" class="button-primary" @click="requestJoinClub" :disabled="joinRequestSent">
-            <Icon icon="mdi:plus" /> {{ joinRequestSent ? 'Request Sent' : 'Request to Join' }}
+            <Icon icon="mdi:plus" /> {{ joinRequestSent ? 'Requested to Join' : 'Request to Join' }}
           </button>
           <button v-else class="button-secondary" disabled>
             <Icon icon="mdi:check" /> Member
@@ -265,7 +317,7 @@ onMounted(() => {
             <h3>About this group</h3>
             <p>{{ club?.description || 'No description available.' }}</p>
             <div v-if="isAdmin" class="admin-section">
-              <button class="button-secondary-small">
+              <button class="button-secondary-small" @click="openAboutModal">
                 <Icon icon="mdi:pencil" /> Edit About
               </button>
             </div>
@@ -431,6 +483,32 @@ onMounted(() => {
         <div class="modal-footer">
           <button class="button-secondary-small" @click="closeEventModal">Cancel</button>
           <button class="button-primary" @click="saveEvent">{{ editingEvent ? 'Update' : 'Create' }} Event</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- About Modal -->
+    <div v-if="showAboutModal" class="modal-overlay" @click="closeAboutModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2>Edit About</h2>
+          <button class="close-btn" @click="closeAboutModal">
+            <Icon icon="mdi:close" />
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Club Title *</label>
+            <input v-model="aboutForm.title" type="text" placeholder="Enter club title" />
+          </div>
+          <div class="form-group">
+            <label>Description *</label>
+            <textarea v-model="aboutForm.description" placeholder="Enter club description" rows="6"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="button-secondary-small" @click="closeAboutModal">Cancel</button>
+          <button class="button-primary" @click="saveAbout">Save Changes</button>
         </div>
       </div>
     </div>

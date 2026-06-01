@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const Filter = require("leo-profanity");
+const filter = require("leo-profanity");
 const { getUserByEmail, createUser, validatePassword, deleteUser } = require("../dataaccess/authDAO");
 const { generateToken, authMiddleware } = require("../middleware/authMiddleware");
 

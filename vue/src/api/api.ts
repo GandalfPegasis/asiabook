@@ -211,6 +211,11 @@ export const api = {
         return response.data;
     },
 
+    async updateClub(id: number, data: { title: string; description: string }): Promise<any> {
+        const response = await apiClient.put(`/clubs/${id}`, data);
+        return response.data;
+    },
+
     async getClubMembers(clubId: number): Promise<any[]> {
         const response = await apiClient.get(`/clubs/${clubId}/members`);
         return response.data;
@@ -223,6 +228,11 @@ export const api = {
 
     async requestJoinClub(clubId: number): Promise<any> {
         const response = await apiClient.post(`/clubs/${clubId}/request-join`);
+        return response.data;
+    },
+
+    async getClubRequestStatus(clubId: number): Promise<{ requested: boolean }> {
+        const response = await apiClient.get(`/clubs/${clubId}/request-status`);
         return response.data;
     },
 

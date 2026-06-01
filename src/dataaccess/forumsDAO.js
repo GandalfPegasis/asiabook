@@ -123,7 +123,24 @@ const getRepliesByForumId = async (forumId, userId = null) => {
                      ORDER BY forum_reply.id ASC;`;
 
         const [rows] = await db.query(sql, params);
-        return rows;
+        
+        // Build nested tree structure: map all replies by id, then build parent-child relationships
+        const replyMap = {};
+        const topLevelReplies = [];
+        
+        rows.forEach(reply => {
+            replyMap[reply.id] = { ...reply, children: [] };
+        });
+        
+        rows.forEach(reply => {
+            if (reply.reply_of === null) {
+                topLevelReplies.push(replyMap[reply.id]);
+            } else if (replyMap[reply.reply_of]) {
+                replyMap[reply.reply_of].children.push(replyMap[reply.id]);
+            }
+        });
+        
+        return topLevelReplies;
     } catch (error) {
         console.error("Error fetching replies by forum ID:", error);
         throw error;
