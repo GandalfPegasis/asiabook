@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue';
 import { Icon } from '@iconify/vue';
 import { apiClient } from '../api/api'; 
+import { useRouter } from "vue-router";
+
 import CreatePostForm from '../components/CreatePostForm.vue';
 import ListPost from '../components/ListPost.vue'; 
 
@@ -11,6 +13,7 @@ const isLoadingMore = ref(false);
 const errorMessage = ref('');
 const currentPage = ref(1);
 const hasMorePosts = ref(true);
+const router = useRouter();
 
 const formatTimeAgo = (dateString: string) => {
   if (!dateString) return 'Recently';
@@ -107,7 +110,18 @@ const likePost = async (postId: number) => {
     post.isLiking = false;
   }
 };
+// Parent component script
+const handleReport = (postId: number) => {
+  if (confirm("Are you sure you want to report this post to the admins?")) {
+    // Call your API: apiClient.post(`/posts/${postId}/report`)
+    console.log(`Reporting post ${postId}`);
+  }
+}
 
+const handleCommentClick = (postId: number) => {
+  // Redirects the user to the dedicated post page we built!
+  router.push(`/post/${postId}`);
+};
 onMounted(() => {
   fetchPosts();
 });
@@ -136,8 +150,8 @@ onMounted(() => {
       </div>
 
       <template v-else>
-        
-        <ListPost :posts="feedPosts" @like="likePost" />
+
+        <ListPost :posts="feedPosts" @like="likePost" @report="handleReport" @comment="handleCommentClick"/>
 
         <div class="load-more-container" v-if="feedPosts.length > 0">
           <button 

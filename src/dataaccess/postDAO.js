@@ -16,6 +16,30 @@ const getPostByProfileId = async (profileId) => {
     }
 };
 
+const getPostById = async (postId) => {
+    try {
+        const [rows] = await db.query(
+            `SELECT 
+                p.id, 
+                p.caption, 
+                p.likes, 
+                p.created_at, 
+                p.status,
+                u.name AS author_name, 
+                u.role AS author_role
+             FROM posts p
+             JOIN profile u ON p.posted_by = u.id
+             WHERE p.id = ?`,
+            [postId],
+        );
+
+        // If a post is found, return the first row. Otherwise, return null.
+        return rows.length > 0 ? rows[0] : null;
+    } catch (error) {
+        throw error;
+    }
+};
+
 const getPosts = async (limit, offset, userId) => {
     try {
         let sql = "";
@@ -170,4 +194,5 @@ module.exports = {
     updateLikeCount,
     getCommentsByPostId,
     addComment,
+    getPostById,
 };

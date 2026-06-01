@@ -1,15 +1,40 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue';
 
-// Define the props to receive the posts data from the parent
+// Define the props
 defineProps<{
   posts: any[];
 }>();
 
-// Define the events this component can emit back to the parent
-defineEmits<{
+// 1. Assign defineEmits to a variable so we can use it inside functions
+const emit = defineEmits<{
   (e: 'like', postId: number): void;
+  (e: 'share', postId: number): void;
+  (e: 'report', postId: number): void;
+  (e: 'comment', postId: number): void; // <-- Add this new event
 }>();
+
+// 2. Create a handler for the Share functionality
+const handleShare = async (post: any) => {
+  // Check if the browser supports the native Web Share API (Great for mobile!)
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: `Post by ${post.author}`,
+        text: post.caption,
+        // You can change this to a specific post URL if your app has dedicated post pages
+        url: window.location.hre 
+      });
+    } catch (error) {
+      console.log('Sharing was canceled or failed.', error);
+    }
+  } else {
+    // Fallback for older browsers: copy to clipboard and emit event to parent
+    navigator.clipboard.writeText(`${window.location.href}`);
+    alert("Link copied to clipboard!");
+    emit('share', post.id); 
+  }
+};
 </script>
 
 <template>
@@ -18,7 +43,7 @@ defineEmits<{
       
       <div class="post-header">
         <div class="author-avatar">
-          {{ post.author.charAt(0).toUpperCase() }}
+          {{ post.author?.charAt(0).toUpperCase() }}
         </div>
         <div class="author-meta">
           <div class="author-name-row">
@@ -49,22 +74,29 @@ defineEmits<{
           @click="$emit('like', post.id)"
           :disabled="post.isLiking"
         >
-          <Icon 
-            :icon="post.hasLiked ? 'mdi:heart' : 'mdi:heart-outline'" 
-            class="action-icon" 
-          />
+          <Icon :icon="post.hasLiked ? 'mdi:heart' : 'mdi:heart-outline'" class="action-icon" />
           <span>{{ post.likes }}</span>
         </button>
         
-        <button class="action-btn">
+        <button class="action-btn" @click="$emit('comment', post.id)">
           <Icon icon="mdi:comment-outline" class="action-icon" />
           <span>{{ post.comments }}</span>
         </button>
         
-        <button class="action-btn share-btn">
+        <button class="action-btn" @click="handleShare(post)">
           <Icon icon="mdi:share-variant-outline" class="action-icon" />
         </button>
+
+        <button 
+          class="action-btn report-btn" 
+          @click="$emit('report', post.id)"
+          title="Report this post"
+          style="margin-left: auto; color: #ef4444;" 
+        >
+          <Icon icon="mdi:flag-outline" class="action-icon" />
+        </button>
       </div>
+
     </article>
   </div>
 </template>
