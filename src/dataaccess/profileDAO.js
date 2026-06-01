@@ -26,7 +26,7 @@ const updateProfile = async (profileId, profileData) => {
                 role = ?,
                 department = ?,
                 language = ?,
-                contact_info = ?
+                contact_number = ?
             WHERE id = ?;`,
             [
                 profileData.name,

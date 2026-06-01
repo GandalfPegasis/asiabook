@@ -2,6 +2,7 @@ const router = require("express").Router();
 const path = require("path");
 const multer = require("multer");
 const { authMiddleware } = require("../middleware/authMiddleware");
+const { createReport } = require("../dataaccess/reportDAO");
 
 // Import all methods from your DAO
 const {
@@ -217,4 +218,22 @@ router.post("/:id/comments", authMiddleware, async (req, res) => {
     }
 });
 
+router.post("/:id/report", authMiddleware, async (req, res) => {
+    try {
+        const postId = parseInt(req.params.id);
+        const reporterId = req.user.id;
+        const { reason } = req.body; // 'spam', 'inappropriate', etc. from your Vue modal
+
+        // We hardcode 'post' here because this is the /posts/:id/report route
+        await createReport(reporterId, "post", postId, reason);
+
+        res.status(201).json({
+            success: true,
+            message: "Report submitted successfully",
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to submit report" });
+    }
+});
 module.exports = router;

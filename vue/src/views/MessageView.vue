@@ -149,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch, computed } from 'vue';
+import { onMounted, onUnmounted, ref, watch, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import { api } from '@/api/api';
@@ -170,7 +170,7 @@ interface MessageItem {
   created_at: string;
   sender_name: string;
   receiver_name: string;
-  is_read: number;
+  is_read: number; // 0 for unread, 1 for read
 }
 
 interface Friend {
@@ -195,14 +195,13 @@ const isLoadingFriends = ref(false);
 const isLoadingConversation = ref(false);
 const conversationError = ref<string | null>(null);
 
+const chatMessagesRef = ref<HTMLElement | null>(null);
+
 const isConnected = ref(false);
 let socket: WebSocket | null = null;
 
 const filteredConversations = computed(() => {
-  if (!conversationSearch.value.trim()) {
-    return conversations.value;
-  }
-
+  if (!conversationSearch.value.trim()) return conversations.value;
   return conversations.value.filter((conversation) =>
     conversation.name.toLowerCase().includes(conversationSearch.value.toLowerCase()) ||
     conversation.last_message.toLowerCase().includes(conversationSearch.value.toLowerCase()),
@@ -210,11 +209,23 @@ const filteredConversations = computed(() => {
 });
 
 const formatDate = (isoDate: string) => {
-  return new Date(isoDate).toLocaleDateString();
+  if (!isoDate) return '';
+  return new Date(isoDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
 const formatDateTime = (isoDate: string) => {
+  if (!isoDate) return '';
   return new Date(isoDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const scrollToBottom = async () => {
+  await nextTick();
+  if (chatMessagesRef.value) {
+    chatMessagesRef.value.scrollTo({
+      top: chatMessagesRef.value.scrollHeight,
+      behavior: 'smooth'
+    });
+  }
 };
 
 const fetchConversations = async () => {
@@ -239,6 +250,18 @@ const fetchFriends = async () => {
   }
 };
 
+// --- NEW LOGIC: Marking messages as read when opening a chat ---
+const markChatAsRead = async (contactId: number) => {
+  try {
+    // 1. Tell the server we read the messages
+    await api.markAsRead(contactId);
+    // 2. Update our local sidebar so the unread badge disappears
+    await fetchConversations();
+  } catch (error) {
+    console.error("Failed to mark chat as read:", error);
+  }
+};
+
 const fetchConversation = async (contactId: number) => {
   isLoadingConversation.value = true;
   conversationError.value = null;
@@ -247,6 +270,10 @@ const fetchConversation = async (contactId: number) => {
     const response = await api.getConversation(contactId);
     messages.value = response.conversation;
     activeContactName.value = response.contact.name;
+    scrollToBottom();
+
+    // Mark as read immediately after loading the chat!
+    markChatAsRead(contactId);
   } catch (err) {
     conversationError.value = 'Could not load this conversation.';
   } finally {
@@ -266,37 +293,32 @@ const selectFriend = (friend: Friend) => {
   router.push({ name: 'messages', params: { id: friend.id } });
 };
 
+const clearActiveContact = () => {
+  activeContactId.value = null;
+  activeContactName.value = '';
+  router.push({ name: 'messages' }); 
+};
+
 const submitMessage = async () => {
-  if (!activeContactId.value || !newMessage.value.trim()) {
-    return;
-  }
+  if (!activeContactId.value || !newMessage.value.trim()) return;
 
   const messageText = newMessage.value.trim();
-  newMessage.value = ''; // Clear input instantly for better UX
+  newMessage.value = ''; 
 
   try {
-    // 1. Save to database via REST
     const savedMessage = await api.sendMessage(activeContactId.value, messageText);
     
-    // 2. Push the locally saved message to the UI instantly 
-    // (Assuming your API returns the created MessageItem)
-    console.log('Saved message from API:', savedMessage);
     if (savedMessage) {
         messages.value.push(savedMessage);
     } else {
-        // Fallback: just refetch if the API doesn't return the message object
         await fetchConversation(activeContactId.value);
     }
 
-    // 3. Update the sidebar
+    scrollToBottom(); 
     await fetchConversations();
-
-    // Note: You typically don't need to send the WS message from the client here.
-    // The backend Node.js server should intercept the POST request to `api.sendMessage` 
-    // and broadcast the WebSocket event to the receiving user automatically.
   } catch (err) {
     console.error('Failed to send message:', err);
-    newMessage.value = messageText; // Restore input on failure
+    newMessage.value = messageText; 
   }
 };
 
@@ -304,14 +326,13 @@ watch(
   () => route.params.id,
   (newId) => {
     if (!newId) {
-      activeContactId.value = null;
-      activeContactName.value = '';
+      clearActiveContact();
       messages.value = [];
       return;
     }
 
     const contactId = parseInt(newId as string, 10);
-    if (!isNaN(contactId)) {
+    if (!isNaN(contactId) && contactId !== activeContactId.value) {
       activeContactId.value = contactId;
       void fetchConversation(contactId);
     }
@@ -325,46 +346,54 @@ onMounted(async () => {
   }
 
   socket = new WebSocket(`ws://localhost:3000?userId=${CURRENT_USER_ID}`);
-
-  socket.onopen = () => {
-    isConnected.value = true;
-  };
+  socket.onopen = () => { isConnected.value = true; };
 
   socket.onmessage = (event) => {
     try {
-      // 1. Parse the incoming string into a JSON object
-      const incomingMessage: MessageItem = JSON.parse(event.data);
+      // Expecting your backend to send a JSON with a 'type' property
+      const incomingData = JSON.parse(event.data);
 
-      // 2. Determine if the message belongs to the CURRENTLY open chat
-      // It belongs here if we sent it to the active contact, or the active contact sent it to us
-      const isForCurrentChat = 
-        (incomingMessage.sender_id === activeContactId.value && incomingMessage.receiver_id === CURRENT_USER_ID) ||
-        (incomingMessage.sender_id === CURRENT_USER_ID && incomingMessage.receiver_id === activeContactId.value);
+      // SCENARIO 1: The other person read our messages
+      if (incomingData.type === 'read_receipt') {
+        if (incomingData.reader_id === activeContactId.value) {
+          // Update all our outgoing messages in this chat to "read" instantly
+          messages.value.forEach(msg => {
+            if (msg.sender_id === CURRENT_USER_ID) msg.is_read = 1;
+          });
+        }
+        return; 
+      }
 
-      if (isForCurrentChat) {
-        // Push to the open chat window
-        console.log(incomingMessage)
-        messages.value.push(incomingMessage);
-      } else {
-        // The message is for a different chat! 
-        // Update the sidebar so the user sees a new unread notification
-        fetchConversations();
+      // SCENARIO 2: We received a new chat message
+      if (incomingData.type === 'chat_message') {
+        const message: MessageItem = incomingData.payload;
+        
+        const isForCurrentChat = 
+          (message.sender_id === activeContactId.value && message.receiver_id === CURRENT_USER_ID) ||
+          (message.sender_id === CURRENT_USER_ID && message.receiver_id === activeContactId.value);
+
+        if (isForCurrentChat) {
+          messages.value.push(message);
+          scrollToBottom();
+
+          // If we have the chat open and they sent a message, instantly mark it as read!
+          if (message.receiver_id === CURRENT_USER_ID) {
+             markChatAsRead(activeContactId.value);
+          }
+        } else {
+          fetchConversations();
+        }
       }
     } catch (e) {
       console.error("Could not parse incoming WebSocket message:", e);
     }
   };
 
-  socket.onclose = () => {
-    isConnected.value = false;
-  };
+  socket.onclose = () => { isConnected.value = false; };
 });
 
-// ALWAYS clean up your WebSockets when leaving the page!
 onUnmounted(() => {
-  if (socket) {
-    socket.close();
-  }
+  if (socket) socket.close();
 });
 </script>
 
