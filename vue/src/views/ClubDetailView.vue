@@ -15,6 +15,7 @@ const currentTab = ref<'about' | 'members' | 'events' | 'requests'>('about');
 const loading = ref(true);
 const currentUser = ref<any | null>(null);
 const joinRequestSent = ref(false);
+const eventFormError = ref('');
 
 // Event modal state
 const showEventModal = ref(false);
@@ -81,8 +82,6 @@ const load = async () => {
       // Ask server if the current user already has a pending request
       try {
         const status = await api.getClubRequestStatus(clubId);
-
-        const serverSaysRequested = status && (status.requested === true || status.requested === 'true' || status.status === 'pending');
         joinRequestSent.value = !!status.requested;
         if (joinRequestSent.value) localStorage.setItem(storageKey, 'true');
       } catch (e) {
@@ -113,7 +112,7 @@ const joinClub = async () => {
   }
 };
 
-const requestJoinClub = async () => {
+const requestJoinClub = async () => {mysql -u your_user -p your_database < fix-club-events-table.sql
   // Optimistic UI: mark as requested immediately
   joinRequestSent.value = true;
   localStorage.setItem(storageKey, 'true');
@@ -166,6 +165,7 @@ const changeRole = async (memberId: number, newRole: 'admin' | 'member') => {
 };
 
 const openEventModal = (event: any = null) => {
+  eventFormError.value = '';
   if (event) {
     editingEvent.value = event;
     eventForm.value = { ...event };
@@ -179,10 +179,30 @@ const openEventModal = (event: any = null) => {
 const closeEventModal = () => {
   showEventModal.value = false;
   editingEvent.value = null;
+  eventFormError.value = '';
 };
 
 const saveEvent = async () => {
+  eventFormError.value = '';
+  
+  if (!eventForm.value.title || !eventForm.value.title.trim()) {
+    eventFormError.value = 'Event title is required.';
+    return;
+  }
+  
+  if (!eventForm.value.event_date) {
+    eventFormError.value = 'Event date and time are required.';
+    return;
+  }
+
+  if (!isAdmin.value) {
+    eventFormError.value = 'You must be a club moderator to create events.';
+    return;
+  }
+
   try {
+    console.log('Saving event', { clubId, event: eventForm.value, isAdmin: isAdmin.value, currentUser: currentUser.value });
+    
     if (editingEvent.value) {
       await api.updateClubEvent(clubId, editingEvent.value.id, eventForm.value);
     } else {
@@ -190,8 +210,25 @@ const saveEvent = async () => {
     }
     await load();
     closeEventModal();
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to save event:', err);
+    
+    // Provide specific error messages based on response status
+    if (err.response?.status === 403) {
+      eventFormError.value = 'You do not have permission to create events. Only moderators can do this.';
+    } else if (err.response?.status === 401) {
+      eventFormError.value = 'Your session has expired. Please log in again.';
+    } else if (err.response?.data?.error) {
+      eventFormError.value = err.response.data.error;
+    } else if (err.response?.data?.message) {
+      eventFormError.value = err.response.data.message;
+    } else if (err.response?.statusText) {
+      eventFormError.value = `Server error: ${err.response.statusText}`;
+    } else if (err.message) {
+      eventFormError.value = err.message;
+    } else {
+      eventFormError.value = 'Unable to save event. Please try again.';
+    }
   }
 };
 
@@ -466,6 +503,7 @@ onMounted(() => {
             <Icon icon="mdi:close" />
           </button>
         </div>
+        <div v-if="eventFormError" class="form-error">{{ eventFormError }}</div>
         <div class="modal-body">
           <div class="form-group">
             <label>Event Title *</label>
@@ -485,8 +523,8 @@ onMounted(() => {
           </div>
         </div>
         <div class="modal-footer">
-          <button class="button-secondary-small" @click="closeEventModal">Cancel</button>
-          <button class="button-primary" @click="saveEvent">{{ editingEvent ? 'Update' : 'Create' }} Event</button>
+          <button class="button-secondary-small" @click="closeEventModal" type="button">Cancel</button>
+          <button class="button-primary" @click="saveEvent" type="button">{{ editingEvent ? 'Update' : 'Create' }} Event</button>
         </div>
       </div>
     </div>
@@ -1146,6 +1184,17 @@ onMounted(() => {
   justify-content: flex-end;
   padding: 16px 24px;
   border-top: 1px solid #e5e7eb;
+}
+
+/* Form Error */
+.form-error {
+  padding: 12px 24px;
+  background: #fee2e2;
+  border-left: 4px solid #dc2626;
+  color: #991b1b;
+  font-weight: 500;
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 /* Button styles for role changes */

@@ -1,0 +1,2 @@
+-- Fix club_events table: make id an AUTO_INCREMENT PRIMARY KEY
+ALTER TABLE club_events MODIFY id INT AUTO_INCREMENT PRIMARY KEY;

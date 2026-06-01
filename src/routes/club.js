@@ -170,7 +170,7 @@ router.post('/:id/events', authMiddleware, async (req, res) => {
         res.json(event);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: err.message || 'Server error' });
     }
 });
 
@@ -188,7 +188,7 @@ router.put('/:id/events/:eventId', authMiddleware, async (req, res) => {
         res.json(result);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: err.message || 'Server error' });
     }
 });
 
@@ -205,7 +205,7 @@ router.delete('/:id/events/:eventId', authMiddleware, async (req, res) => {
         res.json(result);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: err.message || 'Server error' });
     }
 });
 
