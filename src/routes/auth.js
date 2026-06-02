@@ -1,8 +1,25 @@
 const router = require("express").Router();
 const filter = require("leo-profanity");
-const { getUserByEmail, createUser, validatePassword, deleteUser } = require("../dataaccess/authDAO");
-const { generateToken, authMiddleware } = require("../middleware/authMiddleware");
-
+const {
+    getUserByEmail,
+    createUser,
+    validatePassword,
+    deleteUser,
+    isUserAdmin,
+    getUserById,
+    updatePassword,
+    createPasswordResetToken,
+    getValidResetToken,
+    updatePasswordByEmail,
+    deleteResetToken,
+} = require("../dataaccess/authDAO");
+const { isUserSuspended, updateProfile } = require("../dataaccess/profileDAO");
+const crypto = require("crypto");
+const bcrypt = require("bcrypt");
+const {
+    generateToken,
+    authMiddleware,
+} = require("../middleware/authMiddleware");
 
 const UNIVERSITY_RESTRICTED = [
     "asia university",
@@ -37,6 +54,8 @@ router.post("/signup", async (req, res) => {
         department,
     } = req.body;
 
+    console.log(req.body);
+
     if (!name || !email || !password || !confirmPassword) {
         return res.status(400).json({ error: "All fields are required" });
     }
@@ -56,11 +75,9 @@ router.post("/signup", async (req, res) => {
 
     const nameRegex = /^[A-Za-zÀ-ÿ\s'-]+$/;
     if (!nameRegex.test(trimmedName)) {
-        return res
-            .status(400)
-            .json({
-                error: "Name can only contain letters, spaces, apostrophes, and hyphens",
-            });
+        return res.status(400).json({
+            error: "Name can only contain letters, spaces, apostrophes, and hyphens",
+        });
     }
 
     const lowerName = trimmedName.toLowerCase();
@@ -144,7 +161,12 @@ router.post("/login", async (req, res) => {
             return res.status(401).json({ error: "Invalid email or password" });
         }
 
+        if (await isUserSuspended(user.id))
+            res.status(401).json({ error: "User is suspended" });
+
         const token = generateToken(user.id, user.email);
+
+        const isAdmin = await isUserAdmin(user.id);
 
         res.json({
             success: true,
@@ -156,6 +178,7 @@ router.post("/login", async (req, res) => {
                 email: user.email,
                 department: user.department,
                 role: user.role,
+                admin: isAdmin,
             },
         });
     } catch (err) {
@@ -180,6 +203,112 @@ router.delete("/delete-account", authMiddleware, async (req, res) => {
     } catch (err) {
         console.error("Delete account error:", err);
         res.status(500).json({ error: "Failed to delete account" });
+    }
+});
+
+router.post("/change-password", authMiddleware, async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+        req.status(400).json({ error: "Please fill out all field!" });
+    }
+
+    const userId = req.user.id;
+
+    console.log(userId);
+    try {
+        const userData = await getUserById(userId);
+
+        console.log(userData);
+
+        const validCurrentPassword = await validatePassword(
+            currentPassword,
+            userData.password,
+        );
+
+        console.log(validCurrentPassword);
+
+        if (!validCurrentPassword) {
+            return res
+                .status(400)
+                .json({ error: "Current password is wrong!" });
+        }
+
+        await updatePassword(userId, newPassword);
+
+        res.json({ success: true, message: "Password updated successfully!" });
+    } catch (e) {
+        console.error("Error reseting password:", e);
+        res.status(500).json({ error: "Failed reseting password" });
+    }
+});
+
+router.post("/forgot-password", async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const user = await getUserByEmail(email);
+
+        // Security best practice: Don't reveal if the email exists or not
+        if (!user) {
+            return res.json({
+                success: true,
+                message: "If that email exists, a reset link has been sent.",
+            });
+        }
+
+        // Generate token and expiration
+        const token = crypto.randomBytes(32).toString("hex");
+        const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+
+        // Save to DB via DAO
+        await createPasswordResetToken(email, token, expiresAt);
+
+        // MOCK EMAIL LOGIC
+        const resetLink = `http://localhost:5173/reset-password?token=${token}`;
+        console.log(`\n📧 MOCK EMAIL TO: ${email}`);
+        console.log(`Subject: Reset your AsiaBook Password`);
+        console.log(`Click here to reset: ${resetLink}\n`);
+
+        res.json({
+            success: true,
+            message: "If that email exists, a reset link has been sent.",
+        });
+    } catch (error) {
+        console.error("Forgot password error:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// 2. Process New Password
+router.post("/reset-password", async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    try {
+        // Find valid token via DAO
+        const resetRecord = await getValidResetToken(token);
+
+        if (!resetRecord) {
+            return res.status(400).json({
+                error: "Invalid or expired reset token. Please request a new one.",
+            });
+        }
+
+        const userEmail = resetRecord.email;
+
+        // Hash the new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password and clean up token via DAO
+        await updatePasswordByEmail(userEmail, hashedPassword);
+        await deleteResetToken(userEmail);
+
+        res.json({
+            success: true,
+            message: "Password has been successfully reset.",
+        });
+    } catch (error) {
+        console.error("Reset password error:", error);
+        res.status(500).json({ error: "Internal server error" });
     }
 });
 

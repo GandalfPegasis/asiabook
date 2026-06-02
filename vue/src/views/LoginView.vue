@@ -1,71 +1,58 @@
 <template>
-  <div class="auth-page login-page">
-    <div class="auth-container">
-      <div class="auth-card">
-        <div class="auth-header">
-          <h1>AsiaBook</h1>
-          <p>Connect with students and teachers worldwide</p>
-        </div>
-
-        <form @submit.prevent="handleLogin" class="auth-form">
-          <div class="form-group">
-            <label for="email">Email Address</label>
-            <input
-              id="email"
-              v-model="formData.email"
-              type="email"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="password">Password</label>
-            <input
-              id="password"
-              v-model="formData.password"
-              type="password"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <button v-if="!isLoading" type="submit" class="btn-submit">
-            Sign In
-          </button>
-          <button v-else type="button" class="btn-submit loading" disabled>
-            <span class="spinner"></span>
-            Signing in...
-          </button>
-
-          <div v-if="error" class="error-message">
-            {{ error }}
-          </div>
-        </form>
-
-        <div class="auth-divider">
-          <span>Don't have an account?</span>
-        </div>
-
-        <router-link :to="{ name: 'signup' }" class="btn-signup">
-          Create new account
-        </router-link>
+  <div class="auth-page">
+    <div class="auth-card">
+      
+      <div class="auth-header">
+        <h1>AsiaBook</h1>
+        <p>Welcome back! Please enter your details.</p>
       </div>
 
-      <div class="auth-info">
-        <div class="info-card">
-          <h3>Connect with your network</h3>
-          <p>Join thousands of students and teachers sharing knowledge and building friendships.</p>
+      <form @submit.prevent="handleLogin" class="auth-form">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input
+            id="email"
+            v-model="formData.email"
+            type="email"
+            placeholder="you@example.com"
+            required
+          />
         </div>
-        <div class="info-card">
-          <h3>Share your thoughts</h3>
-          <p>Post updates, join forums, and participate in clubs to expand your horizons.</p>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            id="password"
+            v-model="formData.password"
+            type="password"
+            placeholder="••••••••"
+            required
+          />
         </div>
-        <div class="info-card">
-          <h3>Build meaningful relationships</h3>
-          <p>Find friends, send messages, and grow your academic and social circle.</p>
+
+        <button v-if="!isLoading" type="submit" class="btn-primary">
+          Sign In
+        </button>
+        <button v-else type="button" class="btn-primary" disabled>
+          <span class="spin-icon"></span>
+          Signing in...
+        </button>
+
+        <div v-if="error" class="error-message">
+          {{ error }}
         </div>
+
+        <router-link :to="{ name: 'forgot-password' }">Forgot Password?</router-link>
+      </form>
+
+      <div class="auth-divider">
+        <span>Don't have an account?</span>
       </div>
+
+      <router-link :to="{ name: 'signup' }" class="btn-secondary">
+        Create new account
+      </router-link>
+
     </div>
   </div>
 </template>
@@ -102,117 +89,122 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
+/* Base Page Match */
 .auth-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: grid;
-  place-items: center;
-  padding: 2rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-}
-
-.auth-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4rem;
-  width: 100%;
-  max-width: 1000px;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
+/* Card matches Profile/Error pages */
 .auth-card {
   background: white;
-  border-radius: 20px;
-  padding: 3rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 420px;
+  border-radius: 24px;
+  padding: 3rem 2.5rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.05);
+  text-align: center;
 }
 
+/* Header Match */
 .auth-header {
-  margin-bottom: 2.5rem;
-  text-align: center;
+  margin-bottom: 2rem;
 }
 
 .auth-header h1 {
   margin: 0;
-  font-size: 2.5rem;
-  color: #667eea;
-  font-weight: 700;
+  font-size: 2.25rem;
+  color: #0f172a;
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 
 .auth-header p {
   margin: 0.5rem 0 0;
   color: #64748b;
-  font-size: 1rem;
-}
-
-.auth-form {
-  display: grid;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.form-group {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.form-group label {
-  color: #1e293b;
-  font-weight: 600;
   font-size: 0.95rem;
 }
 
+/* Form Styles */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  text-align: left;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-group label {
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
 .form-group input {
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1.15rem;
   border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font-size: 1rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  color: #0f172a;
+  background: #f8fafc;
   transition: all 0.2s ease;
+  font-family: inherit;
+  outline: none;
 }
 
 .form-group input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background: white;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-.btn-submit {
-  padding: 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
-}
-
-.btn-submit:disabled {
-  opacity: 0.8;
-  cursor: not-allowed;
-}
-
-.btn-submit.loading {
+/* Button Match */
+.btn-primary {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.85rem;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.spinner {
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(99, 102, 241, 0.18);
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spin-icon {
   display: inline-block;
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
-  animation: spin 0.6s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -220,76 +212,49 @@ const handleLogin = async () => {
 }
 
 .error-message {
-  padding: 1rem;
-  background: #fee2e2;
+  padding: 0.85rem;
+  background: #fef2f2;
   color: #dc2626;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 0.9rem;
   text-align: center;
+  border: 1px solid #fecaca;
 }
 
+/* Divider & Secondary Button */
 .auth-divider {
-  text-align: center;
-  margin: 2rem 0;
+  margin: 2rem 0 1rem;
   color: #94a3b8;
   font-size: 0.9rem;
 }
 
-.btn-signup {
+.btn-secondary {
   display: block;
-  padding: 1rem;
-  background: #f1f5f9;
-  color: #667eea;
-  border: 2px solid #667eea;
-  border-radius: 10px;
-  text-align: center;
+  width: 100%;
+  padding: 0.85rem;
+  background: white;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
   text-decoration: none;
-  font-weight: 700;
-  transition: all 0.2s ease;
-}
-
-.btn-signup:hover {
-  background: #667eea;
-  color: white;
-}
-
-.auth-info {
-  display: grid;
-  gap: 1.5rem;
-}
-
-.info-card {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 15px;
-  padding: 1.5rem;
-  color: white;
-  backdrop-filter: blur(10px);
-}
-
-.info-card h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
-}
-
-.info-card p {
-  margin: 0;
+  font-weight: 600;
   font-size: 0.95rem;
-  opacity: 0.9;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
-@media (max-width: 768px) {
-  .auth-container {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
+.btn-secondary:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
 
+@media (max-width: 480px) {
+  .auth-page {
+    padding: 1rem;
+  }
   .auth-card {
-    padding: 2rem;
-  }
-
-  .auth-info {
-    display: none;
+    padding: 2rem 1.5rem;
   }
 }
 </style>

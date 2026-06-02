@@ -250,7 +250,6 @@ const fetchFriends = async () => {
   }
 };
 
-// --- NEW LOGIC: Marking messages as read when opening a chat ---
 const markChatAsRead = async (contactId: number) => {
   try {
     // 1. Tell the server we read the messages
@@ -270,6 +269,7 @@ const fetchConversation = async (contactId: number) => {
     const response = await api.getConversation(contactId);
     messages.value = response.conversation;
     activeContactName.value = response.contact.name;
+    console.log(messages.value);
     scrollToBottom();
 
     // Mark as read immediately after loading the chat!
@@ -332,10 +332,9 @@ watch(
     }
 
     const contactId = parseInt(newId as string, 10);
-    if (!isNaN(contactId) && contactId !== activeContactId.value) {
-      activeContactId.value = contactId;
-      void fetchConversation(contactId);
-    }
+
+    activeContactId.value = contactId;
+    void fetchConversation(contactId);
   },
 );
 

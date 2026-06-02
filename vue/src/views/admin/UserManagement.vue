@@ -133,10 +133,6 @@ onMounted(() => {
         <h1>User Directory</h1>
         <p>Manage profiles, enforce community standards, and audit accounts.</p>
       </div>
-      <button class="primary-btn">
-        <Icon icon="heroicons:plus" class="btn-icon" />
-        <span>Manually Add User</span>
-      </button>
     </header>
 
     <div class="controls-card">
@@ -204,9 +200,9 @@ onMounted(() => {
             </td>
 
             <td class="actions-cell">
-              <button class="action-btn edit" title="Edit User">
+              <!-- <button class="action-btn edit" title="Edit User">
                 <Icon icon="heroicons:pencil-square" />
-              </button>
+              </button> -->
               <button 
                 class="action-btn" 
                 :class="user.status === 'suspended' ? 'restore' : 'suspend'"

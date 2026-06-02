@@ -1,130 +1,130 @@
 <template>
-  <div class="auth-page signup-page">
-    <div class="auth-container">
-      <div class="auth-card">
-        <div class="auth-header">
-          <h1>Join AsiaBook</h1>
-          <p>Create your account and start connecting</p>
-        </div>
-
-        <form @submit.prevent="handleSignup" class="auth-form">
-          <div class="form-group">
-            <label for="name">Full Name</label>
-            <input
-              id="name"
-              v-model="formData.name"
-              type="text"
-              placeholder="John Doe"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="email">Email Address</label>
-            <input
-              id="email"
-              v-model="formData.email"
-              type="email"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="password">Password</label>
-            <input
-              id="password"
-              v-model="formData.password"
-              type="password"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="confirmPassword">Confirm Password</label>
-            <input
-              id="confirmPassword"
-              v-model="formData.confirmPassword"
-              type="password"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="role">Role *</label>
-            <select
-              id="role"
-              v-model="formData.role"
-              required
-            >
-              <option value="">Select your role</option>
-              <option value="student">Student</option>
-              <option value="teacher">Teacher</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="department">Department *</label>
-            <select
-              id="department"
-              v-model="formData.department"
-              required
-            >
-              <option value="">Select your department</option>
-              <option v-for="dept in departments" :key="dept" :value="dept">
-                {{ dept }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="contactNumber">Contact Number (Optional)</label>
-            <input
-              id="contactNumber"
-              v-model="formData.contactNumber"
-              type="tel"
-              placeholder="+1 (555) 123-4567"
-            />
-          </div>
-
-          <button v-if="!isLoading" type="submit" class="btn-submit">
-            Create Account
-          </button>
-          <button v-else type="button" class="btn-submit loading" disabled>
-            <span class="spinner"></span>
-            Creating account...
-          </button>
-
-          <div v-if="error" class="error-message">
-            {{ error }}
-          </div>
-        </form>
-
-        <div class="auth-divider">
-          <span>Already have an account?</span>
-        </div>
-
-        <router-link :to="{ name: 'login' }" class="btn-login">
-          Sign In
-        </router-link>
+  <div class="auth-page">
+    <div class="auth-card">
+      
+      <div class="auth-header">
+        <h1>Join AsiaBook</h1>
+        <p>Step {{ currentStep }} of 2: {{ currentStep === 1 ? 'Account Details' : 'Personal Profile' }}</p>
       </div>
 
-      <div class="auth-info">
-        <div class="info-card">
-          <h3>✨ Meet new people</h3>
-          <p>Connect with students and teachers from around the world and build meaningful relationships.</p>
+      <form @submit.prevent="currentStep === 1 ? nextStep() : handleSignup()" class="auth-form">
+        
+        <div v-show="currentStep === 1" class="step-container">
+          <div class="form-group">
+            <label for="name">Full Name *</label>
+            <input id="name" v-model="formData.name" type="text" placeholder="John Doe" required />
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email Address *</label>
+            <input id="email" v-model="formData.email" type="email" placeholder="you@example.com" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="password">Password *</label>
+              <input id="password" v-model="formData.password" type="password" placeholder="••••••••" required />
+            </div>
+
+            <div class="form-group">
+              <label for="confirmPassword">Confirm Password *</label>
+              <input id="confirmPassword" v-model="formData.confirmPassword" type="password" placeholder="••••••••" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="role">Role *</label>
+              <select id="role" v-model="formData.role" required>
+                <option value="" disabled>Select role</option>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="department">Department *</label>
+              <select id="department" v-model="formData.department" required>
+                <option value="" disabled>Select dept</option>
+                <option v-for="dept in departments" :key="dept" :value="dept">
+                  {{ dept }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary">
+            Continue to Profile
+          </button>
         </div>
-        <div class="info-card">
-          <h3>💬 Share and discuss</h3>
-          <p>Participate in forums, clubs, and discussions about topics that interest you.</p>
+
+        <div v-show="currentStep === 2" class="step-container">
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="birthDate">Birth Date</label>
+              <input id="birthDate" v-model="formData.birthDate" type="date" />
+            </div>
+
+            <div class="form-group">
+              <label for="contactNumber">Phone Number</label>
+              <input id="contactNumber" v-model="formData.contactNumber" type="tel" placeholder="+1 (555) 000-0000" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nationality">Nationality</label>
+              <select id="nationality" v-model="formData.nationality">
+                <option value="" disabled>Select country</option>
+                <option value="Taiwan">Taiwan</option>
+                <option value="United States">United States</option>
+                <option value="Japan">Japan</option>
+                <option value="South Korea">South Korea</option>
+                <option value="Indonesia">Indonesia</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+              <label for="language">Primary Language</label>
+              <select id="language" v-model="formData.language">
+                <option value="" disabled>Select language</option>
+                <option value="English">English</option>
+                <option value="Mandarin">Mandarin (Chinese)</option>
+                <option value="Japanese">Japanese</option>
+                <option value="Korean">Korean</option>
+                <option value="Indonesian">Indonesian</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="button-group">
+            <button type="button" class="btn-secondary-outline" @click="currentStep = 1">
+              Back
+            </button>
+
+            <button v-if="!isLoading" type="submit" class="btn-primary flex-fill">
+              Create Account
+            </button>
+            <button v-else type="button" class="btn-primary flex-fill" disabled>
+              <span class="spin-icon"></span> Creating...
+            </button>
+          </div>
         </div>
-        <div class="info-card">
-          <h3>🌍 Expand your network</h3>
-          <p>Find study partners, mentors, and friends who share your goals and interests.</p>
+
+        <div v-if="error" class="error-message">
+          {{ error }}
         </div>
+      </form>
+
+      <div v-if="currentStep === 1" class="auth-divider">
+        <span>Already have an account?</span>
       </div>
+
+      <router-link v-if="currentStep === 1" :to="{ name: 'login' }" class="btn-secondary">
+        Sign In
+      </router-link>
+
     </div>
   </div>
 </template>
@@ -136,6 +136,8 @@ import { useAuth } from '@/composables/useAuth';
 
 const router = useRouter();
 const { signup } = useAuth();
+
+const currentStep = ref(1);
 const isLoading = ref(false);
 const error = ref('');
 
@@ -157,29 +159,44 @@ const formData = ref({
   email: '',
   password: '',
   confirmPassword: '',
+  role: '',
+  department: '',
+  birthDate: '',
   contactNumber: '',
-  role: 'student',
-  department: ''
+  nationality: '',
+  language: ''
 });
+
+const nextStep = () => {
+  error.value = '';
+  
+  // Custom Validation for Step 1
+  if (formData.value.password !== formData.value.confirmPassword) {
+    error.value = 'Passwords do not match.';
+    return;
+  }
+  
+  // If native HTML5 validation passes and passwords match, move to step 2
+  currentStep.value = 2;
+};
 
 const handleSignup = async () => {
   error.value = '';
-  
-  if (!formData.value.role || !formData.value.department) {
-    error.value = 'Please select your role and department';
-    return;
-  }
-
   isLoading.value = true;
+
+  console.log(formData);
 
   const result = await signup(
     formData.value.name,
     formData.value.email,
     formData.value.password,
     formData.value.confirmPassword,
-    formData.value.contactNumber || undefined,
     formData.value.role,
-    formData.value.department
+    formData.value.department,
+    formData.value.contactNumber || undefined,
+    formData.value.birthDate || undefined,
+    formData.value.nationality || undefined,
+    formData.value.language || undefined
   );
 
   if (result.success) {
@@ -193,133 +210,186 @@ const handleSignup = async () => {
 </script>
 
 <style scoped>
+/* Base Page Match */
 .auth-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  display: grid;
-  place-items: center;
-  padding: 2rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-}
-
-.auth-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4rem;
-  width: 100%;
-  max-width: 1000px;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .auth-card {
   background: white;
-  border-radius: 20px;
-  padding: 3rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 540px; /* Slightly wider for the 2-step layout */
+  border-radius: 24px;
+  padding: 2.5rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.05);
+  text-align: center;
 }
 
 .auth-header {
-  margin-bottom: 2.5rem;
-  text-align: center;
+  margin-bottom: 2rem;
 }
 
 .auth-header h1 {
   margin: 0;
-  font-size: 2.5rem;
-  color: #f5576c;
-  font-weight: 700;
+  font-size: 2.25rem;
+  color: #0f172a;
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 
 .auth-header p {
   margin: 0.5rem 0 0;
-  color: #64748b;
-  font-size: 1rem;
-}
-
-.auth-form {
-  display: grid;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.form-group {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.form-group label {
-  color: #1e293b;
+  color: #6366f1; /* Highlighting the step tracker */
   font-weight: 600;
   font-size: 0.95rem;
 }
 
-.form-group input {
-  padding: 1rem 1.25rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font-size: 1rem;
-  transition: all 0.2s ease;
+/* Form Styles */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  text-align: left;
 }
 
-.form-group input:focus {
+.step-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-group label {
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.form-group input, 
+.form-group select {
+  padding: 0.85rem 1.15rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  color: #0f172a;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+  font-family: inherit;
   outline: none;
-  border-color: #f5576c;
-  box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-group select {
-  padding: 1rem 1.25rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font-size: 1rem;
-  transition: all 0.2s ease;
-  background-color: white;
+  appearance: none;
   cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1.2em;
+  padding-right: 2.5rem;
 }
 
+.form-group input:focus, 
 .form-group select:focus {
-  outline: none;
-  border-color: #f5576c;
-  box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1);
+  background: white;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-.btn-submit {
-  padding: 1rem;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
+/* Button Match */
+.button-group {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 
-.btn-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(245, 87, 108, 0.3);
+.flex-fill {
+  flex: 1;
 }
 
-.btn-submit:disabled {
-  opacity: 0.8;
-  cursor: not-allowed;
-}
-
-.btn-submit.loading {
+.btn-primary {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.85rem;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
 }
 
-.spinner {
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(99, 102, 241, 0.18);
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-secondary-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.5rem;
+  padding: 0.85rem 1.5rem;
+  background: white;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary-outline:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.spin-icon {
   display: inline-block;
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
-  animation: spin 0.6s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -327,76 +397,54 @@ const handleSignup = async () => {
 }
 
 .error-message {
-  padding: 1rem;
-  background: #fee2e2;
+  padding: 0.85rem;
+  background: #fef2f2;
   color: #dc2626;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 0.9rem;
   text-align: center;
+  border: 1px solid #fecaca;
+  margin-top: 0.5rem;
 }
 
+/* Divider & Secondary Button */
 .auth-divider {
-  text-align: center;
-  margin: 2rem 0;
+  margin: 1.5rem 0 1rem;
   color: #94a3b8;
   font-size: 0.9rem;
 }
 
-.btn-login {
+.btn-secondary {
   display: block;
-  padding: 1rem;
-  background: #f1f5f9;
-  color: #f5576c;
-  border: 2px solid #f5576c;
-  border-radius: 10px;
-  text-align: center;
+  width: 100%;
+  padding: 0.85rem;
+  background: white;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
   text-decoration: none;
-  font-weight: 700;
-  transition: all 0.2s ease;
-}
-
-.btn-login:hover {
-  background: #f5576c;
-  color: white;
-}
-
-.auth-info {
-  display: grid;
-  gap: 1.5rem;
-}
-
-.info-card {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 15px;
-  padding: 1.5rem;
-  color: white;
-  backdrop-filter: blur(10px);
-}
-
-.info-card h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
-}
-
-.info-card p {
-  margin: 0;
+  font-weight: 600;
   font-size: 0.95rem;
-  opacity: 0.9;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
-@media (max-width: 768px) {
-  .auth-container {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
+.btn-secondary:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
 
+@media (max-width: 600px) {
+  .auth-page {
+    padding: 1rem;
+  }
   .auth-card {
-    padding: 2rem;
+    padding: 2rem 1.5rem;
   }
-
-  .auth-info {
-    display: none;
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 1.1rem;
   }
 }
 </style>

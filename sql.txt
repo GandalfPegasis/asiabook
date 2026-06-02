@@ -72,7 +72,7 @@ CREATE TABLE forum(
     description text,
     club_id int DEFAULT NULL,
     votes int NOT NULL DEFAULT 0,
-    status ENUM('active', 'locked', 'flagged') DEFAULT 'active',
+    status ENUM('active', 'suspended') DEFAULT 'active',
     FOREIGN KEY (post_by) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade,
     FOREIGN KEY (club_id) REFERENCES clubs(id) ON UPDATE cascade ON DELETE cascade
 );
@@ -119,6 +119,16 @@ CREATE TABLE clubs(
     status ENUM('active', 'suspended', 'in review') ,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE club_requests (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    requested_by INT NOT NULL,
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (requested_by) REFERENCES profile(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE messages(
@@ -291,3 +301,10 @@ LEFT JOIN friends f ON
 
 GROUP BY p.id, prof.name, p.created_at, f.id
 ORDER BY feed_score DESC;
+
+
+CREATE TABLE admin(
+    id int primary key auto_increment,
+    profile_id int,
+    FOREIGN KEY (profile_id) REFERENCES profile(id) ON UPDATE cascade ON DELETE cascade
+);

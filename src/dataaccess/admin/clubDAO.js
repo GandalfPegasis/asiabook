@@ -45,4 +45,118 @@ const getClubs = async (search, status) => {
     }
 };
 
-module.exports = { getClubs };
+// Fetch all pending requests
+const getPendingClubRequests = async () => {
+    const [requests] = await db.query(`
+        SELECT cr.id, cr.title, cr.description, cr.requested_by, p.name as requester_name, cr.created_at
+        FROM club_requests cr
+        JOIN profile p ON cr.requested_by = p.id
+        WHERE cr.status = 'pending'
+        ORDER BY cr.created_at ASC
+    `);
+    return requests;
+};
+
+// Approve a request (Creates the club, updates request status)
+const approveClubRequest = async (requestId) => {
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // 1. Get the request data
+        const [requests] = await conn.query(
+            "SELECT * FROM club_requests WHERE id = ?",
+            [requestId],
+        );
+        const request = requests[0];
+
+        if (!request) throw new Error("Request not found");
+
+        // 2. Create the actual club
+        const [clubResult] = await conn.query(
+            "INSERT INTO clubs (title, description, status) VALUES (?, ?, ?)",
+            [request.title, request.description, "active"],
+        );
+        const newClubId = clubResult.insertId;
+
+        // 3. (Optional) Automatically make the requester an admin of their new club!
+        // await conn.query('INSERT INTO club_members (club_id, user_id, role) VALUES (?, ?, ?)', [newClubId, request.requested_by, 'admin']);
+
+        // 4. Mark the request as approved
+        await conn.query(
+            'UPDATE club_requests SET status = "approved" WHERE id = ?',
+            [requestId],
+        );
+
+        await conn.commit();
+        return newClubId;
+    } catch (e) {
+        await conn.rollback();
+        throw e;
+    } finally {
+        conn.release();
+    }
+};
+
+// Reject a request
+const rejectClubRequest = async (requestId) => {
+    await db.query(
+        'UPDATE club_requests SET status = "rejected" WHERE id = ?',
+        [requestId],
+    );
+};
+
+const deleteClubById = async (clubId) => {
+    try {
+        const [result] = await db.query("DELETE FROM clubs WHERE id = ?", [
+            clubId,
+        ]);
+
+        // Returns true if a row was actually deleted, false if the club didn't exist
+        return result.affectedRows > 0;
+    } catch (error) {
+        console.error("Error deleting club:", error);
+        throw error;
+    }
+};
+
+const createOfficialClub = async (title, description, status = "active") => {
+    try {
+        const [result] = await db.query(
+            `INSERT INTO clubs (title, description, status) 
+             VALUES (?, ?, ?)`,
+            [title, description, status],
+        );
+
+        // Return the ID of the newly created club
+        return result.insertId;
+    } catch (error) {
+        console.error("Error creating official club:", error);
+        throw error;
+    }
+};
+
+const updateClubStatus = async (clubId, status) => {
+    try {
+        const [result] = await db.query(
+            "UPDATE clubs SET status = ? WHERE id = ?",
+            [status, clubId],
+        );
+
+        // Returns true if the club was found and updated
+        return result.affectedRows > 0;
+    } catch (error) {
+        console.error("Error updating club status:", error);
+        throw error;
+    }
+};
+
+module.exports = {
+    getClubs,
+    getPendingClubRequests,
+    rejectClubRequest,
+    approveClubRequest,
+    deleteClubById,
+    createOfficialClub,
+    updateClubStatus,
+};

@@ -81,10 +81,10 @@ router.get("/", async (req, res) => {
 router.put("/:id/lock", async (req, res) => {
     const forumId = req.params.id;
     try {
-        await db.query(`UPDATE forum SET status = 'locked' WHERE id = ?`, [
+        await db.query(`UPDATE forum SET status = 'suspended' WHERE id = ?`, [
             forumId,
         ]);
-        res.json({ success: true, message: "Thread locked successfully." });
+        res.json({ success: true, message: "Thread suspended successfully." });
     } catch (error) {
         console.error("Failed to lock thread:", error);
         res.status(500).json({ error: "Failed to lock thread" });

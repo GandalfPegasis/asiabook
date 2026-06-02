@@ -68,12 +68,33 @@
       
       <button 
         class="btn-danger" 
-        @click="handleDeleteAccount" 
+        @click="showDeleteModal = true" 
         :disabled="isDeletingAccount">
-        <Icon :icon="isDeletingAccount ? 'eos-icons:loading' : 'mdi:trash-can-outline'" :class="{ 'spin-icon': isDeletingAccount }" />
-        <span>{{ isDeletingAccount ? 'Deleting Account...' : 'Delete Account Permanently' }}</span>
+        <Icon icon="mdi:trash-can-outline" />
+        <span>Delete Account Permanently</span>
       </button>
     </section>
+
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+      <div class="modal-card">
+        <div class="modal-header text-danger">
+          <Icon icon="mdi:alert" width="32" />
+          <h2>Confirm Deletion</h2>
+        </div>
+        <p class="modal-body">
+          Are you absolutely sure you want to delete your account? This action will permanently wipe all profile footprints and <strong>cannot be undone</strong>.
+        </p>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="showDeleteModal = false" :disabled="isDeletingAccount">
+            Cancel
+          </button>
+          <button class="btn-danger" @click="confirmDeleteAccount" :disabled="isDeletingAccount">
+            <Icon v-if="isDeletingAccount" icon="eos-icons:loading" class="spin-icon" />
+            <span>{{ isDeletingAccount ? 'Deleting...' : 'Yes, Delete My Account' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </main>
 </template>
 
@@ -82,13 +103,14 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { Icon } from '@iconify/vue'
-import { apiClient } from '@/api/api' // Adjust path based on your api structure
+import { apiClient } from '@/api/api'
 
 const router = useRouter()
 const { deleteAccount, logout } = useAuth()
 
 const isUpdatingPassword = ref(false)
 const isDeletingAccount = ref(false)
+const showDeleteModal = ref(false) // NEW: Controls the modal visibility
 
 const alertMessage = ref('')
 const alertType = ref<'success' | 'error'>('success')
@@ -110,8 +132,7 @@ const handlePasswordChange = async () => {
 
   isUpdatingPassword.value = true
   try {
-    // Hits the backend route we structured earlier
-    await apiClient.post('/change-password', {
+    await apiClient.post('/auth/change-password', {
       currentPassword: passwordForm.currentPassword,
       newPassword: passwordForm.newPassword
     })
@@ -119,7 +140,6 @@ const handlePasswordChange = async () => {
     alertType.value = 'success'
     alertMessage.value = 'Password changed successfully.'
     
-    // Clear form inputs
     passwordForm.currentPassword = ''
     passwordForm.newPassword = ''
     passwordForm.confirmPassword = ''
@@ -131,10 +151,8 @@ const handlePasswordChange = async () => {
   }
 }
 
-const handleDeleteAccount = async () => {
-  if (!confirm('Are you sure you want to delete your account? This action cannot be undone.')) return
-  if (!confirm('This will permanently wipe all profile footprints. Continue?')) return
-
+// NEW: Function that runs when they click "Yes, Delete" inside the modal
+const confirmDeleteAccount = async () => {
   isDeletingAccount.value = true
   const result = await deleteAccount()
 
@@ -142,13 +160,17 @@ const handleDeleteAccount = async () => {
     logout()
     router.push({ name: 'login' })
   } else {
-    alert(`Failed to delete account: ${result.error}`)
+    // If it fails, close the modal and show the error in our inline alert banner instead of a native alert
+    showDeleteModal.value = false
+    alertType.value = 'error'
+    alertMessage.value = `Failed to delete account: ${result.error}`
   }
   isDeletingAccount.value = false
 }
 </script>
 
 <style scoped>
+/* Keeping your existing styles exactly as they were... */
 .settings-container {
   max-width: 650px;
   margin: 2rem auto;
@@ -260,6 +282,7 @@ const handleDeleteAccount = async () => {
 .btn-danger {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   background: #dc2626;
   color: white;
@@ -269,7 +292,8 @@ const handleDeleteAccount = async () => {
   font-weight: 600;
   cursor: pointer;
 }
-.btn-danger:hover { background: #b91c1c; }
+.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+.btn-danger:disabled { opacity: 0.7; cursor: not-allowed; }
 
 .alert {
   display: flex;
@@ -285,4 +309,85 @@ const handleDeleteAccount = async () => {
 
 .spin-icon { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* =========================================
+   NEW: Modal Styles
+========================================= */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-card {
+  background: white;
+  width: 90%;
+  max-width: 450px;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: modal-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.modal-header h2 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.modal-body {
+  text-align: center;
+  color: #475569;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.modal-actions button {
+  flex: 1;
+}
+
+.btn-cancel {
+  background: white;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #f8fafc;
+  color: #0f172a;
+}
+.btn-cancel:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@keyframes modal-pop {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
 </style>

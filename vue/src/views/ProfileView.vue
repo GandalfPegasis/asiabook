@@ -65,6 +65,23 @@
             </div>
           </div>
 
+          <div class="clubs-section card-box">
+            <h2>Joined Clubs</h2>
+            <ul v-if="users.clubs && users.clubs.length > 0" class="clubs-list">
+              <li v-for="club in users.clubs" :key="club.id">
+                <RouterLink :to="{ name: 'club-detail', params: { id: club.id } }" class="club-item">
+                  <div class="club-icon">
+                    <Icon icon="mdi:account-group-outline" />
+                  </div>
+                  <span class="club-name">{{ club.title }}</span>
+                </RouterLink>
+              </li>
+            </ul>
+            <div v-else class="empty-state-small">
+              <p>Not a member of any clubs yet.</p>
+            </div>
+          </div>
+
           <div class="friends-section card-box">
             <div class="friends-header">
               <h2>Friends</h2>
@@ -83,7 +100,6 @@
 
             <ul v-else-if="friends?.friends?.length > 0" class="friends-list">
               <li v-for="friend in friends.friends" :key="friend.id">
-                
                 <RouterLink 
                   :to="{ name: 'profile', params: { id: friend.id } }" 
                   class="friend-item"
@@ -93,33 +109,70 @@
                   </div>
                   <span class="friend-name">{{ friend.name }}</span>
                 </RouterLink>
-
               </li>
             </ul>
-
             <div v-else class="friends-status empty-state-small">
               <p>No friends added yet.</p>
             </div>
           </div>
         </aside>
 
-        <!-- Right Column Structure -->
         <div class="right-column">
             <section class="posts-section card-box">
-                <h2>{{ route.params.id ? `${users.name.split(' ')[0]}'s Posts` : 'My Posts' }}</h2>
+                <div class="activity-header">
+                  <h2>{{ route.params.id ? `${users.name.split(' ')[0]}'s Activity` : 'My Activity' }}</h2>
+                  
+                  <div class="tab-controls">
+                    <button 
+                      :class="{ active: activeTab === 'feed' }" 
+                      @click="activeTab = 'feed'">
+                      Feed Posts
+                    </button>
+                    <button 
+                      :class="{ active: activeTab === 'forum' }" 
+                      @click="activeTab = 'forum'">
+                      Forum Posts
+                    </button>
+                  </div>
+                </div>
                 
-                <CreatePostForm v-if="!route.params.id" @post-created="fetchProfile" />
+                <div v-if="activeTab === 'feed'">
+                  <CreatePostForm v-if="!route.params.id" @post-created="fetchProfile" />
 
-                <div v-if="formattedProfilePosts.length > 0">
-                  <ListPost :posts="formattedProfilePosts" @like="handleLike" />
+                  <div v-if="formattedProfilePosts.length > 0">
+                    <ListPost :posts="formattedProfilePosts" @like="handleLike" />
+                  </div>
+                  <div v-else class="empty-posts">
+                      <Icon icon="mdi:text-box-remove-outline" class="empty-icon" />
+                      <p>No feed posts yet.</p>
+                  </div>
                 </div>
-                
-                <div v-else class="empty-posts">
-                    <Icon icon="mdi:text-box-remove-outline" class="empty-icon" />
-                    <p>No posts yet.</p>
+
+                <div v-else-if="activeTab === 'forum'" class="forum-tab-content">
+                  <div v-if="users.forum_posts && users.forum_posts.length > 0" class="forum-list">
+                    
+                    <RouterLink 
+                      v-for="forumPost in users.forum_posts" 
+                      :key="forumPost.id"
+                      :to="{ name: 'thread', params: { id: forumPost.forum_id } }"
+                      class="forum-post-card"
+                    >
+                      <div class="forum-post-meta">
+                        <Icon icon="mdi:forum-outline" class="forum-icon" />
+                        <span>Posted in <strong>{{ forumPost.thread_title }}</strong></span>
+                      </div>
+                      <p class="forum-post-content">"{{ forumPost.content }}"</p>
+                      <span class="forum-post-time">{{ formatDate(forumPost.created_at) }}</span>
+                    </RouterLink>
+
+                  </div>
+                  <div v-else class="empty-posts">
+                      <Icon icon="mdi:forum-remove-outline" class="empty-icon" />
+                      <p>No forum activity yet.</p>
+                  </div>
                 </div>
+
             </section>
-
         </div>
 
       </div>
@@ -134,10 +187,9 @@ import { Icon } from '@iconify/vue';
 import { apiClient } from '@/api/api';
 import CreatePostForm from '../components/CreatePostForm.vue';
 import ListPost from '../components/ListPost.vue'; 
-
-// IMPORT YOUR AUTH COMPOSABLE (Adjust the path if needed)
 import { useAuth } from '@/composables/useAuth'; 
 
+// --- EXPANDED INTERFACES ---
 interface Post {
   post_id: number;
   location: string | null;
@@ -146,6 +198,19 @@ interface Post {
   likes?: number;
   images: string[],
   comment_count?: number;
+}
+
+interface ClubSummary {
+  id: number;
+  title: string;
+}
+
+interface ForumPostSummary {
+  id: number;
+  forum_id: number;
+  thread_title: string;
+  content: string;
+  created_at: string;
 }
 
 interface User {
@@ -159,6 +224,8 @@ interface User {
   language: string;
   contact_info: string;
   posts: Post[];
+  clubs?: ClubSummary[]; // NEW
+  forum_posts?: ForumPostSummary[]; // NEW
 }
 
 interface FriendData {
@@ -171,7 +238,7 @@ interface FriendData {
 
 const route = useRoute();
 const router = useRouter(); 
-const { getUserId } = useAuth(); // Destructure getUserId
+const { getUserId } = useAuth(); 
 
 const users = ref<User | null>(null);
 const isLoading = ref(true);
@@ -183,6 +250,9 @@ const friends = ref<FriendData>({
 });
 const isLoadingFriends = ref(true);
 const friendsError = ref<string | null>(null);
+
+// NEW: Active Tab State
+const activeTab = ref<'feed' | 'forum'>('feed');
 
 const formatDate = (dateString: string | undefined) => {
   if (!dateString) return '';
@@ -256,19 +326,15 @@ const handleLike = async (postId: number) => {
   }
 };
 
-// --- NEW LOGIC: Check Route and Redirect ---
 const handleRouteChange = () => {
   const currentUserId = getUserId();
   const routeIdParam = route.params.id;
 
-  // If there is an ID in the URL and it matches the logged-in user...
   if (routeIdParam && parseInt(routeIdParam as string, 10) === currentUserId) {
-    // Redirect to the base profile page (this removes the /:id from the URL)
     router.replace('/profile'); 
-    return; // Stop execution here. The watcher will re-trigger this function after the URL changes.
+    return; 
   }
 
-  // If it doesn't match, or there's no ID, fetch normally
   fetchProfile();
   fetchFriends();
 };
@@ -287,7 +353,7 @@ watch(
 
 <style scoped>
 /* =========================================
-   1. Base Variables & Container
+   1. Base Variables & Container (Kept exactly the same)
 ========================================= */
 .profile-container {
   min-height: 100vh;
@@ -300,9 +366,6 @@ watch(
   margin: 0 auto;
 }
 
-/* =========================================
-   2. Shared Card Styles
-========================================= */
 .card-box, .profile-header-card {
   background: white;
   border-radius: 24px;
@@ -321,8 +384,157 @@ h2 {
 }
 
 /* =========================================
-   3. Buttons & States
+   NEW: Clubs Section Styles
 ========================================= */
+.clubs-section {
+  padding: 1.5rem;
+}
+
+.clubs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.club-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  transition: background-color 0.2s ease, border-color 0.2s;
+  border: 1px solid transparent;
+  text-decoration: none;
+  color: inherit;
+}
+
+.club-item:hover {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.club-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #fdf2f8; /* Soft pink bg */
+  color: #ec4899; /* Pink icon */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.club-name {
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* =========================================
+   NEW: Post Tabs & Forum Activity Styles
+========================================= */
+.activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.activity-header h2 {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.tab-controls {
+  display: flex;
+  gap: 0.5rem;
+  background: #f1f5f9;
+  padding: 0.25rem;
+  border-radius: 12px;
+}
+
+.tab-controls button {
+  background: transparent;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.tab-controls button.active {
+  background: white;
+  color: #6366f1;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.forum-tab-content {
+  padding: 1rem 0;
+}
+
+.forum-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.forum-post-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.forum-post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
+  border-color: #cbd5e1;
+}
+
+.forum-post-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.forum-icon {
+  color: #6366f1;
+  font-size: 1.1rem;
+}
+
+.forum-post-content {
+  color: #0f172a;
+  font-weight: 500;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.forum-post-time {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+/* =========================================
+   (Keep the rest of your existing CSS below)
+========================================= */
+
 .state-wrapper {
   padding: 3rem;
   background: white;
@@ -394,9 +606,6 @@ h2 {
 
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
-/* =========================================
-   4. Top Header Card
-========================================= */
 .profile-header-card {
   display: flex;
   align-items: center;
@@ -459,9 +668,6 @@ h2 {
   color: #6366f1;
 }
 
-/* =========================================
-   5. Profile Body Layout
-========================================= */
 .profile-body {
   display: grid;
   grid-template-columns: 1fr;
@@ -485,9 +691,6 @@ h2 {
   gap: 1.5rem;
 }
 
-/* =========================================
-   6. Details Section
-========================================= */
 .details-section {
   padding: 1.5rem;
 }
@@ -518,9 +721,6 @@ h2 {
   font-weight: 500;
 }
 
-/* =========================================
-   7. Friends Section
-========================================= */
 .friends-section {
   padding: 1.5rem;
 }
@@ -572,6 +772,7 @@ h2 {
   border-radius: 12px;
   transition: background-color 0.2s ease;
   border: 1px solid transparent;
+  text-decoration: none;
 }
 
 .friend-item:hover {
@@ -606,9 +807,6 @@ h2 {
   padding: 1rem 0;
 }
 
-/* =========================================
-   8. Posts Section
-========================================= */
 .posts-section {
   padding: 1.5rem;
   background: white;
@@ -620,29 +818,15 @@ h2 {
   gap: 1rem;
 }
 
-/* Reset the H2 so it's just a header, not a floating card */
-.posts-section h2 {
-  background: transparent;
-  padding: 0 0 1rem 0;
-  margin: 0;
-  border: none;
-  border-bottom: 1px solid #e2e8f0;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-/* Flatten the Create Post component so it doesn't look like a box in a box */
-/* Flatten the Create Post component */
 .posts-section :deep(.create-post-card) {
   border: none;
   box-shadow: none;
-  padding: 1.5rem 1rem; /* ADDED SIDE PADDING */
+  padding: 1.5rem 1rem;
   background: transparent;
   border-bottom: 1px solid #f1f5f9;
   border-radius: 0;
 }
 
-/* Flatten the Post List cards */
 .posts-section :deep(.posts-wrapper) {
   gap: 0; 
 }
@@ -650,13 +834,12 @@ h2 {
 .posts-section :deep(.post-card) {
   border: none;
   box-shadow: none;
-  padding: 1.5rem 1rem; /* ADDED SIDE PADDING */
+  padding: 1.5rem 1rem;
   background: transparent;
   border-bottom: 1px solid #f1f5f9;
   border-radius: 0;
 }
 
-/* Remove the border from the very last post */
 .posts-section :deep(.post-card:last-child) {
   border-bottom: none;
 }
@@ -676,7 +859,6 @@ h2 {
   color: #cbd5e1;
 }
 
-/* Mobile Adjustments */
 @media (max-width: 720px) {
   .profile-container {
     padding: 1rem;
@@ -699,7 +881,14 @@ h2 {
   }
 
   .posts-section {
-    padding: 1rem; /* Restore padding on mobile */
+    padding: 1rem;
+  }
+
+  /* Stack tabs vertically on very small screens if needed */
+  .activity-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
   }
 }
 </style>

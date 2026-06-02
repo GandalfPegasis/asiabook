@@ -6,7 +6,8 @@ export interface UserInterface {
     email: string,
     id: number,
     name: string,
-    role: string
+    role: string,
+    admin: boolean
 }
 
 // Global state outside the function so it persists across component usages
@@ -55,12 +56,14 @@ export function useAuth() {
         }
     };
 
-    const signup = async (name: string, email: string, password: string, confirmPassword: string, contactNumber?: string, role?: string, department?: string) => {
+    const signup = async (name: string, email: string, password: string, confirmPassword: string, 
+        role?: string, department?: string, contactNumber?: string, birthDate?: string, 
+        nationality?: string, language?: string) => {
         try {
             const response = await fetch('http://localhost:3000/auth/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, password, confirmPassword, contactNumber, role, department }),
+                body: JSON.stringify({ name, email, password, confirmPassword, contactNumber, role, department, birthDate, nationality, language }),
             });
 
             if (!response.ok) {
@@ -103,6 +106,22 @@ export function useAuth() {
         return null;
     }
 
+    const isAdmin = () => {
+        if(user.value?.admin) return true;
+
+        const storedUser = localStorage.getItem("auth_user");
+        if (storedUser) {
+            try {
+                const parsedUser = JSON.parse(storedUser) as UserInterface;
+                return parsedUser.admin ?? false;
+            } catch (e) {
+                console.error("Failed to parse user from local storage", e);
+                return false;
+            }
+        }
+        return false;
+    }
+
     const logout = () => {
         token.value = null;
         user.value = null;
@@ -142,6 +161,7 @@ export function useAuth() {
         signup,
         logout,
         deleteAccount,
-        getUserId // FIXED: Added this to the exports
+        getUserId,
+        isAdmin
     };
 }

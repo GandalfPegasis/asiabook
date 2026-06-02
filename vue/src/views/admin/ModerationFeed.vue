@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
-import { apiClient } from '@/api/api' // Make sure this path is correct for your project!
+import { apiClient } from '@/api/api'
 
 // Toggling between posts and comments
 const activeTab = ref('posts')
@@ -13,6 +13,13 @@ const isLoading = ref(false)
 
 const activeQueue = computed(() => activeTab.value === 'posts' ? flaggedPosts.value : flaggedComments.value)
 
+// --- MODAL STATE ---
+const showModal = ref(false)
+const isProcessing = ref(false)
+const modalAction = ref<'delete' | 'warn' | null>(null)
+const selectedItem = ref<any>(null)
+const actionError = ref('')
+
 // 1. FETCH DATA FUNCTION
 const fetchModerationData = async () => {
   try {
@@ -21,30 +28,25 @@ const fetchModerationData = async () => {
     // Fetch both posts and comments simultaneously
     const [postsRes, commentsRes] = await Promise.all([
       apiClient.get('/admin/post/'),
-      // Assuming you will build a similar route for comments later
       apiClient.get('/admin/post/comments').catch(() => ({ data: { data: [] } })) 
     ]);
 
-    // Map the backend SQL data to match your Vue template's required structure
     flaggedPosts.value = postsRes.data.data.map((post: any) => ({
       id: post.id,
       author: post.author_name,
       authorInitials: post.author_name ? post.author_name.charAt(0).toUpperCase() : '?',
-      role: 'student', // You might need to add role to your SQL SELECT if you want this dynamic
+      role: 'student', 
       caption: post.caption,
       hasImage: !!post.image_url, 
       imageUrl: post.image_url || '',
-      // If there are multiple reports, combine the reasons
       reportReason: post.reports?.length > 0 
         ? post.reports.map((r: any) => r.reason).join(', ') 
         : 'Auto-flagged by System',
       reportedBy: post.report_count > 1 ? 'Multiple Users' : 'Community Member',
-      // Determine severity based on how many people reported it
       severity: post.report_count >= 3 ? 'high' : 'medium',
       timestamp: new Date(post.created_at).toLocaleString()
     }));
 
-    // Do the same for comments if you have them
     flaggedComments.value = commentsRes.data?.data || [];
 
   } catch (error) {
@@ -54,51 +56,83 @@ const fetchModerationData = async () => {
   }
 }
 
-// 2. MODERATION ACTIONS FUNCTION
-const resolveReport = async (id: number, action: 'keep' | 'delete' | 'warn' | 'suspend') => {
-  
-  // Destructive action confirmation
-  if (action === 'delete' && !confirm('Permanently delete this content from the database?')) return;
-  if (action === 'suspend' && !confirm('Suspend this post? It will be hidden from the feed.')) return;
-
+// 2. IMMEDIATE ACTION (Keep Content)
+const handleKeepContent = async (id: number) => {
   const originalPosts = [...flaggedPosts.value];
   const originalComments = [...flaggedComments.value];
 
   try {
-    // Optimistic UI Update: Remove it from the screen immediately so it feels fast
+    // Optimistic UI Update
     if (activeTab.value === 'posts') {
       flaggedPosts.value = flaggedPosts.value.filter(p => p.id !== id);
     } else {
       flaggedComments.value = flaggedComments.value.filter(c => c.id !== id);
     }
 
-    // Call the corresponding API endpoint we built earlier
-    const endpointBase = `/admin/post/${activeTab.value}`; 
+    // FIXED: Dynamically choose the endpoint based on the active tab
+    const endpointBase = activeTab.value === 'posts' ? `/admin/post` : `/admin/post/comments`; 
     
-    if (action === 'keep') {
-      // Dismiss the reports and keep the post active
-      await apiClient.put(`${endpointBase}/${id}/dismiss-reports`);
-    } 
-    else if (action === 'suspend' || action === 'delete') {
-      // Suspend it (hides it from the feed)
-      await apiClient.put(`${endpointBase}/${id}/suspend`);
-    }
-    else if (action === 'warn') {
-      // You can add logic to send an email or database warning to the user here
-      alert("Warning sent to user.");
-      await apiClient.put(`${endpointBase}/${id}/suspend`);
-    }
+    await apiClient.put(`${endpointBase}/${id}/dismiss-reports`);
 
   } catch (error) {
-    console.error(`Failed to ${action} item:`, error);
-    // If the API fails, revert the UI back to how it was
+    console.error(`Failed to dismiss reports:`, error);
+    // Revert UI on failure
     flaggedPosts.value = originalPosts;
     flaggedComments.value = originalComments;
-    alert(`Failed to ${action} the content. Please try again.`);
+    alert(`Failed to keep content. Please try again.`);
   }
 }
 
-// 3. TRIGGER FETCH ON LOAD
+// 3. OPEN MODAL (For Destructive Actions)
+const promptAction = (item: any, action: 'delete' | 'warn') => {
+  selectedItem.value = item;
+  modalAction.value = action;
+  actionError.value = '';
+  showModal.value = true;
+}
+
+// 4. CONFIRM MODAL ACTION
+const confirmAction = async () => {
+  if (!selectedItem.value) return;
+
+  isProcessing.value = true;
+  actionError.value = '';
+
+  const id = selectedItem.value.id;
+  
+  // FIXED: Dynamically choose the endpoint based on the active tab
+  const endpointBase = activeTab.value === 'posts' ? `/admin/post` : `/admin/post/comments`; 
+
+  try {
+    if (modalAction.value === 'delete') {
+      // Actually delete the content
+      await apiClient.delete(`${endpointBase}/${id}`);
+    } 
+    else if (modalAction.value === 'warn') {
+      // Suspend it and warn the user
+      await apiClient.put(`${endpointBase}/${id}/suspend`);
+    }
+
+    // Remove from UI successfully
+    if (activeTab.value === 'posts') {
+      flaggedPosts.value = flaggedPosts.value.filter(p => p.id !== id);
+    } else {
+      flaggedComments.value = flaggedComments.value.filter(c => c.id !== id);
+    }
+
+    // Close modal
+    showModal.value = false;
+    selectedItem.value = null;
+
+  } catch (error: any) {
+    console.error(`Failed to execute ${modalAction.value}:`, error);
+    actionError.value = error.response?.data?.error || `Failed to ${modalAction.value} the content.`;
+  } finally {
+    isProcessing.value = false;
+  }
+}
+
+// 5. TRIGGER FETCH ON LOAD
 onMounted(() => {
   fetchModerationData();
 })
@@ -139,14 +173,18 @@ onMounted(() => {
     </div>
 
     <div class="feed-container">
-      
-      <div v-if="activeQueue.length === 0" class="empty-state-card">
+      <div v-if="isLoading" class="empty-state-card">
+        <Icon icon="eos-icons:loading" class="spin-icon" style="font-size: 3rem; color: #6366f1;" />
+        <p>Loading moderation queue...</p>
+      </div>
+
+      <div v-else-if="activeQueue.length === 0" class="empty-state-card">
         <Icon icon="heroicons:check-badge" class="empty-icon" />
         <h2>All caught up!</h2>
         <p>There is no flagged content waiting in the queue.</p>
       </div>
 
-      <div v-for="item in activeQueue" :key="item.id" class="report-card">
+      <div v-else v-for="item in activeQueue" :key="item.id" class="report-card">
         
         <div class="report-meta" :class="item.severity">
           <div class="meta-left">
@@ -177,17 +215,17 @@ onMounted(() => {
         </div>
 
         <div class="action-bar">
-          <button class="action-btn keep" @click="resolveReport(item.id, 'keep')">
+          <button class="action-btn keep" @click="handleKeepContent(item.id)">
             <Icon icon="heroicons:check-circle" class="btn-icon" />
             <span>Ignore / Keep Content</span>
           </button>
           
           <div class="destructive-actions">
-            <button class="action-btn warn" @click="resolveReport(item.id, 'warn')">
+            <!-- <button class="action-btn warn" @click="promptAction(item, 'warn')">
               <Icon icon="heroicons:exclamation-triangle" class="btn-icon" />
               <span>Warn User</span>
-            </button>
-            <button class="action-btn delete" @click="resolveReport(item.id, 'delete')">
+            </button> -->
+            <button class="action-btn delete" @click="promptAction(item, 'delete')">
               <Icon icon="heroicons:trash" class="btn-icon" />
               <span>Delete Content</span>
             </button>
@@ -197,120 +235,142 @@ onMounted(() => {
       </div>
     </div>
 
+    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+      <div class="modal-card" :class="modalAction === 'delete' ? 'delete-modal' : 'warning-modal'">
+        
+        <div class="modal-header" :class="modalAction === 'delete' ? 'text-danger' : 'text-warning'">
+          <Icon :icon="modalAction === 'delete' ? 'heroicons:trash' : 'heroicons:exclamation-triangle'" width="36" />
+          <h2>{{ modalAction === 'delete' ? 'Delete Content?' : 'Warn User & Suspend?' }}</h2>
+        </div>
+
+        <p class="modal-body">
+          <template v-if="modalAction === 'delete'">
+            Are you sure you want to permanently delete this content? This action will remove it from the database entirely and <strong>cannot be undone</strong>.
+          </template>
+          <template v-else>
+            Are you sure you want to suspend this content and flag a warning on <strong>{{ selectedItem?.author }}</strong>'s account? It will be hidden from the feed.
+          </template>
+        </p>
+
+        <div class="modal-snippet">
+           "{{ selectedItem?.caption || selectedItem?.content }}"
+        </div>
+
+        <div v-if="actionError" class="alert error mb-4">
+          <Icon icon="mdi:alert-circle" />
+          <span>{{ actionError }}</span>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="showModal = false" :disabled="isProcessing">
+            Cancel
+          </button>
+          <button 
+            :class="['flex-fill', modalAction === 'delete' ? 'btn-danger' : 'btn-warning']" 
+            @click="confirmAction" 
+            :disabled="isProcessing"
+          >
+            <Icon v-if="isProcessing" icon="eos-icons:loading" class="spin-icon" />
+            <span>{{ isProcessing ? 'Processing...' : 'Confirm Action' }}</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </template>
 
 <style scoped>
-.moderation-feed {
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-/* Header */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
+/* Keeping your existing styles, adding just the modal styles below */
+.moderation-feed { max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; }
 .title-section h1 { font-size: 2rem; color: #0f172a; margin: 0 0 0.5rem 0; }
 .title-section p { color: #64748b; margin: 0; }
-
-.stat-badge {
-  background: white; border: 1px solid #e2e8f0; padding: 0.75rem 1.5rem;
-  border-radius: 16px; display: flex; align-items: center; gap: 0.75rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-}
-.stat-num { font-size: 1.5rem; font-weight: 700; color: #ef4444; }
-.stat-label { font-size: 0.85rem; font-weight: 600; color: #64748b; text-transform: uppercase; }
+.stat-badge { background: #e0e7ff; color: #4f46e5; padding: 0.75rem 1.25rem; border-radius: 16px; display: flex; flex-direction: column; align-items: center; }
+.stat-num { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+.stat-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
 
 /* Tabs */
-.tabs-container {
-  display: flex; gap: 1rem; margin-bottom: 1.5rem;
-}
-.tab-btn {
-  display: flex; align-items: center; gap: 0.5rem; padding: 0.85rem 1.5rem;
-  background: white; border: 1px solid #e2e8f0; border-radius: 12px;
-  font-size: 0.95rem; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s;
-}
+.tabs-container { display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; }
+.tab-btn { background: none; border: none; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600; color: #64748b; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; border-radius: 12px; transition: all 0.2s; }
 .tab-btn:hover { background: #f8fafc; color: #0f172a; }
-.tab-btn.active {
-  background: #eef2ff; color: #6366f1; border-color: #c7d2fe;
-}
-.tab-icon { font-size: 1.2rem; }
+.tab-btn.active { background: #e0e7ff; color: #4f46e5; }
+.tab-icon { font-size: 1.25rem; }
 
-/* Feed Container */
+/* Feed & Cards */
 .feed-container { display: flex; flex-direction: column; gap: 1.5rem; }
+.empty-state-card { background: white; border-radius: 20px; border: 1px dashed #cbd5e1; padding: 4rem 2rem; text-align: center; color: #64748b; }
+.empty-icon { font-size: 4rem; color: #10b981; margin-bottom: 1rem; opacity: 0.5; }
+.empty-state-card h2 { color: #0f172a; margin: 0 0 0.5rem 0; font-size: 1.5rem; }
 
-/* Empty State */
-.empty-state-card {
-  background: white; border-radius: 24px; border: 1px dashed #cbd5e1;
-  padding: 4rem 2rem; text-align: center; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-}
-.empty-icon { font-size: 4rem; color: #10b981; margin-bottom: 1rem; }
-.empty-state-card h2 { margin: 0 0 0.5rem 0; color: #0f172a; }
-.empty-state-card p { margin: 0; color: #64748b; }
+.report-card { background: white; border-radius: 20px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
 
-/* Report Cards */
-.report-card {
-  background: white; border-radius: 24px; border: 1px solid #e2e8f0;
-  overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-}
-
-/* Report Meta Header */
-.report-meta {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 1rem 1.5rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 0.85rem;
-}
-.report-meta.high { background: #fef2f2; border-bottom-color: #fecaca; }
-.report-meta.medium { background: #fffbeb; border-bottom-color: #fde68a; }
-
+/* Report Meta Banner */
+.report-meta { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; font-size: 0.85rem; font-weight: 600; }
+.report-meta.high { background: #fef2f2; color: #991b1b; border-bottom: 1px solid #fecaca; }
+.report-meta.medium { background: #fffbeb; color: #b45309; border-bottom: 1px solid #fde68a; }
 .meta-left { display: flex; align-items: center; gap: 0.5rem; }
 .flag-icon { font-size: 1.1rem; }
-.report-meta.high .flag-icon { color: #ef4444; }
-.report-meta.medium .flag-icon { color: #f59e0b; }
+.reason-text { font-weight: 700; text-transform: uppercase; }
+.meta-right strong { font-weight: 700; }
 
-.reason-label { color: #64748b; font-weight: 500; }
-.reason-text { font-weight: 700; color: #0f172a; }
-.meta-right { color: #64748b; }
-
-/* Content Preview (The actual post) */
+/* Content Preview */
 .content-preview { padding: 1.5rem; }
-.content-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; position: relative;}
-.avatar-sm {
-  width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
-  display: flex; align-items: center; justify-content: center; color: white; font-weight: 700;
-}
-.author-info { display: flex; flex-direction: column; }
-.author-name { font-weight: 600; color: #0f172a; font-size: 0.95rem; }
-.timestamp { color: #94a3b8; font-size: 0.8rem; }
-.content-id { position: absolute; right: 0; top: 0; font-size: 0.75rem; color: #cbd5e1; font-family: monospace; }
+.content-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.avatar-sm { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; }
+.author-info { display: flex; flex-direction: column; flex-grow: 1; }
+.author-name { font-weight: 600; color: #0f172a; }
+.timestamp { font-size: 0.8rem; color: #64748b; }
+.content-id { font-size: 0.8rem; color: #94a3b8; font-family: monospace; background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 6px; }
 
-.content-body { margin: 0 0 1rem 0; color: #334155; line-height: 1.5; font-size: 1rem; }
-.content-image-wrapper { border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; max-height: 400px; display: flex; justify-content: center; background: #f1f5f9; }
-.content-image { width: 100%; object-fit: contain; }
+.content-body { color: #1e293b; line-height: 1.6; margin: 0 0 1rem 0; font-size: 1.05rem; }
+.content-image-wrapper { border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; max-height: 400px; display: flex; align-items: center; justify-content: center; background: #f8fafc; }
+.content-image { max-width: 100%; max-height: 400px; object-fit: contain; }
 
 /* Action Bar */
-.action-bar {
-  display: flex; justify-content: space-between; padding: 1rem 1.5rem;
-  background: #f8fafc; border-top: 1px solid #e2e8f0;
-}
+.action-bar { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0; }
 .destructive-actions { display: flex; gap: 0.75rem; }
 
-.action-btn {
-  display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem;
-  border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
-}
-.btn-icon { font-size: 1.2rem; }
-
-.action-btn.keep { background: white; border: 1px solid #cbd5e1; color: #475569; }
-.action-btn.keep:hover { border-color: #10b981; color: #10b981; background: #ecfdf5; }
-
-.action-btn.warn { background: white; border: 1px solid #fde68a; color: #d97706; }
+.action-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+.action-btn.keep { background: white; border-color: #cbd5e1; color: #475569; }
+.action-btn.keep:hover { background: #f1f5f9; color: #10b981; border-color: #a7f3d0; }
+.action-btn.warn { background: white; border-color: #fde68a; color: #d97706; }
 .action-btn.warn:hover { background: #fffbeb; }
+.action-btn.delete { background: white; border-color: #fecaca; color: #dc2626; }
+.action-btn.delete:hover { background: #fef2f2; }
 
-.action-btn.delete { background: #ef4444; border: 1px solid #ef4444; color: white; }
-.action-btn.delete:hover { background: #dc2626; border-color: #dc2626; }
+/* =========================================
+   MODAL STYLES
+========================================= */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+.modal-card { background: white; width: 90%; max-width: 450px; border-radius: 20px; padding: 2rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); animation: modal-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+
+.modal-header { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin-bottom: 1rem; text-align: center; }
+.modal-header h2 { font-size: 1.5rem; margin: 0; }
+.text-danger { color: #dc2626; }
+.text-warning { color: #d97706; }
+
+.modal-body { text-align: center; color: #475569; line-height: 1.6; margin-bottom: 1rem; }
+.modal-body strong { color: #0f172a; }
+
+.modal-snippet { background: #f1f5f9; padding: 1rem; border-radius: 12px; font-style: italic; color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem; border-left: 4px solid #cbd5e1; text-align: left; }
+
+.modal-actions { display: flex; gap: 1rem; }
+.btn-cancel { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s; flex: 1; }
+.btn-cancel:hover:not(:disabled) { background: #f8fafc; color: #0f172a; }
+
+.flex-fill { flex: 1; }
+.btn-danger, .btn-warning { display: flex; align-items: center; justify-content: center; gap: 0.5rem; color: white; border: none; padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-danger { background: #dc2626; }
+.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+.btn-warning { background: #f59e0b; }
+.btn-warning:hover:not(:disabled) { background: #d97706; }
+.btn-danger:disabled, .btn-warning:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.alert.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.9rem; }
+.mb-4 { margin-bottom: 1rem; }
+.spin-icon { animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes modal-pop { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
 </style>

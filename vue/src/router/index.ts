@@ -20,6 +20,18 @@ const router = createRouter({
             meta: { requiresAuth: false }
         },
         {
+            path: '/forgot-password',
+            name: 'forgot-password',
+            component: () => import('../views/ForgotPasswordView.vue'),
+            meta: { requiresAuth: false }
+        },
+        {
+            path: '/reset-password',
+            name: 'reset-password',
+            component: () => import('../views/ResetPasswordView.vue'),
+            meta: { requiresAuth: false }
+        },
+        {
             path: '/',
             component: MainLayout,
             children: [
@@ -142,11 +154,11 @@ const router = createRouter({
             path: '/forbidden',
             name: 'forbidden',
             component: ErrorView,
-            props: { 
+            props: (route) => ({ 
                 code: '403', 
-                title: 'Access Denied', 
-                message: 'You do not have the necessary administrator permissions to view this command center.' 
-            }
+                title: route.query.title || 'Access Denied', 
+                message: route.query.message ||'You do not have the necessary administrator permissions to view this command center.' 
+            })
         },
         // The 404 Route
         {
@@ -159,14 +171,14 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from) => {
-    const { isAuthenticated, initAuth } = useAuth()
+    const { isAuthenticated, initAuth, isAdmin } = useAuth()
     
     initAuth()
     
     const requiresAuth = to.meta.requiresAuth !== false
 
     const requireAdmin = to.meta.isAdmin
-    const userRole = 'teacher' // change
+    const admin = isAdmin();
 
     if (to.name === 'forbidden' || to.name === 'not-found' || to.name === 'login') {
         return; // Returning nothing tells Vue Router "proceed as normal"
@@ -178,8 +190,7 @@ router.beforeEach((to, from) => {
         return { name: 'home'}
     }
 
-    if (requireAdmin && userRole !== "teacher") {
-        // If a student tries to go to /admin, kick them to the 403 page
+    if (requireAdmin && !admin) {
         return { name: 'forbidden' }
     } 
 })

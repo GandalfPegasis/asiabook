@@ -126,7 +126,7 @@ onMounted(() => {
         <div class="data-card">
           <div class="card-header">
             <h2>Recent User Registrations</h2>
-            <button class="text-btn">View All</button>
+            <!-- <button class="text-btn">View All</button> -->
           </div>
           
           <div v-if="usersLoading" class="table-loading">
@@ -140,7 +140,7 @@ onMounted(() => {
                 <th>Role</th>
                 <th>Department</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <!-- <th>Actions</th> -->
               </tr>
             </thead>
             <tbody>
@@ -161,9 +161,9 @@ onMounted(() => {
                     {{ user.status }}
                   </span>
                 </td>
-                <td>
+                <!-- <td>
                   <button class="action-icon"><Icon icon="heroicons:ellipsis-horizontal" /></button>
-                </td>
+                </td> -->
               </tr>
               <tr v-if="recentUsers.length === 0">
                 <td colspan="5" style="text-align: center; color: #64748b;">No recent users found.</td>

@@ -5,6 +5,12 @@ const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
+
+const {
+    authMiddleware,
+    isAdmin,
+} = require("./src/middleware/authMiddleware.js");
+
 app.use(cors());
 app.use(express.json());
 // app.use(express.static("public"));
@@ -75,7 +81,7 @@ wss.on("connection", (ws, req) => {
 
 // Routes & Middleware
 app.use(require("./src/routes"));
-app.use("/admin", require("./src/routes/admin"));
+app.use("/admin", authMiddleware, isAdmin, require("./src/routes/admin"));
 
 app.all("/{*any}", (req, res, next) => {
     const err = new Error(`Route not found!`);

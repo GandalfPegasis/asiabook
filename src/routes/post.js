@@ -2,12 +2,13 @@ const router = require("express").Router();
 const path = require("path");
 const multer = require("multer");
 const { authMiddleware } = require("../middleware/authMiddleware");
+const { autoFlagMiddleware } = require("../middleware/moderation"); // <-- NEW: Imported the word filter!
 const { createReport } = require("../dataaccess/reportDAO");
 
 // Import all methods from your DAO
 const {
     getPosts,
-    createPost, // Note: You'll need to update this DAO method to save file URLs!
+    createPost,
     updateLikeCount,
     getCommentsByPostId,
     addComment,
@@ -17,11 +18,9 @@ const {
 // --- MULTER STORAGE CONFIGURATION ---
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        // Files will be saved in an 'uploads' directory. Ensure this folder exists.
         cb(null, "uploads/");
     },
     filename: function (req, file, cb) {
-        // Generates a unique filename using a timestamp + random number
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
         cb(
             null,
@@ -56,7 +55,7 @@ const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: 50 * 1024 * 1024, // 50MB maximum limit to accommodate video uploads
+        fileSize: 50 * 1024 * 1024, // 50MB maximum limit
     },
 });
 
@@ -74,12 +73,9 @@ router.get("/", async (req, res) => {
         const formattedPosts = rows.map((post) => {
             let parsedImages = [];
 
-            // 1. If the DB driver already parsed it into an array natively
             if (Array.isArray(post.images)) {
                 parsedImages = post.images;
-            }
-            // 2. If the DB driver returned the JSON_ARRAYAGG as a string
-            else if (typeof post.images === "string") {
+            } else if (typeof post.images === "string") {
                 try {
                     parsedImages = JSON.parse(post.images);
                 } catch (e) {
@@ -103,33 +99,49 @@ router.get("/", async (req, res) => {
     }
 });
 
-// POST /posts - Create Post (Modified to accept files)
-// 'media' is the form field key name your frontend must use. Max 5 files per post.
-router.post("/", authMiddleware, upload.array("media", 5), async (req, res) => {
-    const { caption } = req.body;
-    const posted_by = req.user.id;
+// POST /posts - Create Post
+// NEW: Added `autoFlagMiddleware` to catch bad words in the caption!
+router.post(
+    "/",
+    authMiddleware,
+    upload.array("media", 5),
+    autoFlagMiddleware,
+    async (req, res) => {
+        const { caption } = req.body;
+        const posted_by = req.user.id;
 
-    try {
-        // Collect relative web paths for all successfully uploaded files
-        // e.g., ["/uploads/media-171523...png", "/uploads/media-171523...mp4"]
-        const mediaPaths = req.files
-            ? req.files.map((file) => `/uploads/${file.filename}`)
-            : [];
+        // The middleware automatically attaches this (either 'active' or 'reviewing')
+        const status = req.body.status || "active";
 
-        // CRITICAL: You must modify createPost in your DAO to accept this third argument
-        // and stringify or pass it to your DB schema (e.g., JSON column or junction table)
-        const postId = await createPost(posted_by, caption, mediaPaths);
+        try {
+            const mediaPaths = req.files
+                ? req.files.map((file) => `/uploads/${file.filename}`)
+                : [];
 
-        res.status(201).json({
-            message: "Post created successfully",
-            id: postId,
-            media: mediaPaths,
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Failed to create post" });
-    }
-});
+            // CRITICAL: Update createPost in your DAO to accept the 4th argument (status)
+            const postId = await createPost(
+                posted_by,
+                caption,
+                mediaPaths,
+                status,
+            );
+
+            res.status(201).json({
+                success: true,
+                message:
+                    status === "reviewing"
+                        ? "Post submitted and is pending review by moderators."
+                        : "Post created successfully",
+                id: postId,
+                media: mediaPaths,
+                status: status,
+            });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: "Failed to create post" });
+        }
+    },
+);
 
 // --- LIKES ROUTES ---
 
@@ -157,25 +169,24 @@ router.delete("/:id/like", authMiddleware, async (req, res) => {
     }
 });
 
+// GET /posts/:id - Fetch Single Post
 router.get("/:id", async (req, res) => {
     const postId = req.params.id;
 
     try {
         const post = await getPostById(postId);
 
-        // 1. Check if the post actually exists
         if (!post) {
             return res.status(404).json({ error: "Post not found." });
         }
 
-        // 2. Optional Security: Block users from viewing suspended posts
-        if (post.status === "suspended") {
+        // Security: Block users from viewing suspended OR reviewing posts
+        if (post.status === "suspended" || post.status === "reviewing") {
             return res
                 .status(403)
-                .json({ error: "This post has been removed by moderators." });
+                .json({ error: "This post is currently unavailable." });
         }
 
-        // 3. Send it back to Vue
         res.json({ success: true, data: post });
     } catch (error) {
         console.error("Failed to fetch single post:", error);
@@ -198,33 +209,56 @@ router.get("/:id/comments", async (req, res) => {
 });
 
 // POST /posts/:id/comments - Create a Comment
-router.post("/:id/comments", authMiddleware, async (req, res) => {
-    try {
-        const postId = parseInt(req.params.id);
-        const commentBy = req.user.id;
-        const { content } = req.body;
+// NEW: Inserted autoFlagMiddleware here to catch bad words!
+router.post(
+    "/:id/comments",
+    authMiddleware,
+    autoFlagMiddleware,
+    async (req, res) => {
+        try {
+            const postId = parseInt(req.params.id);
+            const commentBy = req.user.id;
+            const { content } = req.body;
 
-        if (!content || content.trim() === "") {
-            return res
-                .status(400)
-                .json({ error: "Comment content is required" });
+            // Provided by the middleware
+            const status = req.body.status || "active";
+
+            if (!content || content.trim() === "") {
+                return res
+                    .status(400)
+                    .json({ error: "Comment content is required" });
+            }
+
+            // CRITICAL: Update addComment in your DAO to accept the 4th argument (status)
+            const commentId = await addComment(
+                postId,
+                commentBy,
+                content,
+                status,
+            );
+
+            res.status(201).json({
+                success: true,
+                message:
+                    status === "reviewing"
+                        ? "Comment submitted and is pending review."
+                        : "Comment added",
+                id: commentId,
+            });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: "Failed to add comment" });
         }
+    },
+);
 
-        const commentId = await addComment(postId, commentBy, content);
-        res.status(201).json({ message: "Comment added", id: commentId });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Failed to add comment" });
-    }
-});
-
+// --- REPORT ROUTE ---
 router.post("/:id/report", authMiddleware, async (req, res) => {
     try {
         const postId = parseInt(req.params.id);
         const reporterId = req.user.id;
-        const { reason } = req.body; // 'spam', 'inappropriate', etc. from your Vue modal
+        const { reason } = req.body;
 
-        // We hardcode 'post' here because this is the /posts/:id/report route
         await createReport(reporterId, "post", postId, reason);
 
         res.status(201).json({
@@ -236,4 +270,40 @@ router.post("/:id/report", authMiddleware, async (req, res) => {
         res.status(500).json({ error: "Failed to submit report" });
     }
 });
+
+router.post("/comments/:id/report", authMiddleware, async (req, res) => {
+    try {
+        const commentId = parseInt(req.params.id, 10);
+        const reporterId = req.user.id; // Pulled from your auth token
+        const { reason } = req.body;
+
+        // 1. Basic validation
+        if (!reason) {
+            return res
+                .status(400)
+                .json({ error: "A report reason is required." });
+        }
+
+        console.log(commentId);
+        if (isNaN(commentId)) {
+            return res.status(400).json({ error: "Invalid comment ID." });
+        }
+
+        // 2. Save it to the database
+        // Notice we explicitly pass "post_comment" as the entity type here!
+        await createReport(reporterId, "post_comment", commentId, reason);
+
+        // 3. Send success response back to the Vue modal
+        res.status(201).json({
+            success: true,
+            message: "Report submitted successfully.",
+        });
+    } catch (error) {
+        console.error("Failed to submit comment report:", error);
+        res.status(500).json({
+            error: "An internal server error occurred while reporting.",
+        });
+    }
+});
+
 module.exports = router;
