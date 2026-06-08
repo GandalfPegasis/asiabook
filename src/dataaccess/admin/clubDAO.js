@@ -78,9 +78,11 @@ const approveClubRequest = async (requestId) => {
             [request.title, request.description, "active"],
         );
         const newClubId = clubResult.insertId;
-
         // 3. (Optional) Automatically make the requester an admin of their new club!
-        // await conn.query('INSERT INTO club_members (club_id, user_id, role) VALUES (?, ?, ?)', [newClubId, request.requested_by, 'admin']);
+        await conn.query(
+            "INSERT INTO club_members (club_id, profile_id, role) VALUES (?, ?, ?)",
+            [newClubId, request.requested_by, "admin"],
+        );
 
         // 4. Mark the request as approved
         await conn.query(
@@ -91,6 +93,7 @@ const approveClubRequest = async (requestId) => {
         await conn.commit();
         return newClubId;
     } catch (e) {
+        console.error(e);
         await conn.rollback();
         throw e;
     } finally {

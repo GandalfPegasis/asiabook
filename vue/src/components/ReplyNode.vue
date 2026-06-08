@@ -58,7 +58,10 @@ const gotoProfile = (id?: number) => {
 <template>
   <div class="reply-item" :id="'reply-' + reply.id">
     <div class="reply-meta">
-      <div class="avatar" @click.stop.prevent="gotoProfile(reply.post_by)">{{ reply.replier_name ? reply.replier_name.charAt(0) : '?' }}</div>
+      <div class="avatar" @click.stop.prevent="gotoProfile(reply.post_by)">
+        <img v-if="reply.replier_avatar" :src="`http://localhost:3000${reply.replier_avatar}`" alt="Avatar" class="avatar-img" />
+        <span v-else>{{ reply.author_name?.charAt(0).toUpperCase() || 'U' }}</span>
+      </div>
       <div class="name" @click.stop.prevent="gotoProfile(reply.post_by)">{{ reply.replier_name || 'Unknown' }}</div>
       <div class="votes">
         <button :class="{ active: reply.user_vote === 1 }" @click.prevent.stop="vote(1)">▲</button>

@@ -9,6 +9,7 @@ CREATE TABLE profile(
     department varchar(100),
     language text,
     contact_info text,
+    avatar TEXT,
     status ENUM("active", "suspended"),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

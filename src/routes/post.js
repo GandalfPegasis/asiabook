@@ -284,7 +284,6 @@ router.post("/comments/:id/report", authMiddleware, async (req, res) => {
                 .json({ error: "A report reason is required." });
         }
 
-        console.log(commentId);
         if (isNaN(commentId)) {
             return res.status(400).json({ error: "Invalid comment ID." });
         }

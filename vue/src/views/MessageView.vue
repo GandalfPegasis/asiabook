@@ -44,7 +44,8 @@
             :class="{ active: conversation.id === activeContactId }"
             @click="selectConversation(conversation)">
             <div class="conversation-avatar">
-              {{ conversation.name.charAt(0).toUpperCase() }}
+              <img v-if="conversation.avatar" :src="`http://localhost:3000${conversation.avatar}`" alt="Avatar" class="avatar-img" />
+              <span v-else>{{ conversation.name.charAt(0).toUpperCase() }}</span>
             </div>
             <div class="conversation-details">
               <div class="conversation-name">{{ conversation.name }}</div>
@@ -74,7 +75,10 @@
               :key="friend.id"
               class="friend-list-item"
               @click="selectFriend(friend)">
-              <div class="friend-avatar">{{ friend.name.charAt(0).toUpperCase() }}</div>
+              <div class="friend-avatar">
+                <img v-if="friend.avatar" :src="`http://localhost:3000${friend.avatar}`" alt="Avatar" class="avatar-img" />
+                <span v-else>{{ friend.name.charAt(0).toUpperCase() }}</span>
+              </div>
               <div>
                 <div class="friend-name">{{ friend.name }}</div>
                 <div class="friend-status">Say hello</div>
@@ -93,7 +97,10 @@
 
         <div v-else class="chat-screen">
           <div class="chat-header">
-            <div class="chat-avatar">{{ activeContactName.charAt(0).toUpperCase() }}</div>
+            <div class="chat-avatar">
+              <img v-if="activeProfile" :src="`http://localhost:3000${activeProfile}`" alt="Avatar" class="avatar-img" />
+              <span v-else>{{ activeContactName.charAt(0).toUpperCase() }}</span>
+            </div>
             <div>
               <h2>{{ activeContactName }}</h2>
               <p>Active now</p>
@@ -157,9 +164,16 @@ import { api } from '@/api/api';
 interface ConversationSummary {
   id: number;
   name: string;
+  avatar?: string; // ADDED
   last_message: string;
   last_at: string;
   unreadCount: number;
+}
+
+interface Friend {
+  id: number;
+  name: string;
+  avatar?: string; // ADDED
 }
 
 interface MessageItem {
@@ -173,11 +187,6 @@ interface MessageItem {
   is_read: number; // 0 for unread, 1 for read
 }
 
-interface Friend {
-  id: number;
-  name: string;
-}
-
 const authUser = localStorage.getItem('auth_user');
 const CURRENT_USER_ID = authUser ? JSON.parse(authUser).id : null;
 const route = useRoute();
@@ -185,6 +194,7 @@ const router = useRouter();
 
 const activeContactId = ref<number | null>(route.params.id ? parseInt(route.params.id as string, 10) : null);
 const activeContactName = ref<string>('');
+const activeProfile = ref<string | null>('');
 const conversationSearch = ref('');
 const conversations = ref<ConversationSummary[]>([]);
 const friends = ref<Friend[]>([]);
@@ -202,6 +212,7 @@ let socket: WebSocket | null = null;
 
 const filteredConversations = computed(() => {
   if (!conversationSearch.value.trim()) return conversations.value;
+
   return conversations.value.filter((conversation) =>
     conversation.name.toLowerCase().includes(conversationSearch.value.toLowerCase()) ||
     conversation.last_message.toLowerCase().includes(conversationSearch.value.toLowerCase()),
@@ -269,7 +280,7 @@ const fetchConversation = async (contactId: number) => {
     const response = await api.getConversation(contactId);
     messages.value = response.conversation;
     activeContactName.value = response.contact.name;
-    console.log(messages.value);
+    
     scrollToBottom();
 
     // Mark as read immediately after loading the chat!
@@ -284,12 +295,14 @@ const fetchConversation = async (contactId: number) => {
 const selectConversation = (conversation: ConversationSummary) => {
   activeContactId.value = conversation.id;
   activeContactName.value = conversation.name;
+  activeProfile.value = conversation.avatar ?? null;
   router.push({ name: 'messages', params: { id: conversation.id } });
 };
 
 const selectFriend = (friend: Friend) => {
   activeContactId.value = friend.id;
   activeContactName.value = friend.name;
+  activeProfile.value = friend.avatar ?? null;
   router.push({ name: 'messages', params: { id: friend.id } });
 };
 

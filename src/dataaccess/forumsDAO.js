@@ -83,8 +83,8 @@ const getForums = async (opts = {}) => {
             : "";
         if (userId) params.unshift(userId);
 
-        // Added f.status to the SELECT so the frontend knows if it is locked!
-        const sql = `SELECT f.id, f.title, f.description, f.status, f.post_by AS author_id, p.name AS author_name, p.role AS author_role, f.votes,
+        // NEW: Added p.avatar AS author_avatar
+        const sql = `SELECT f.id, f.title, f.description, f.status, f.post_by AS author_id, p.name AS author_name, p.avatar AS author_avatar, p.role AS author_role, f.votes,
                           (SELECT COUNT(*) FROM forum_reply fr WHERE fr.forum_id = f.id) AS reply_count,
                           ${userId ? "COALESCE(fv.vote, 0) AS user_vote," : ""} f.club_id
                          FROM forum f
@@ -111,9 +111,8 @@ const getForumById = async (forumId, userId = null) => {
             params.unshift(userId);
         }
 
-        // Added forum.status != 'suspended' to the WHERE clause
-        // Added forum.status to the SELECT
-        const sql = `SELECT forum.id, forum.title, forum.description, forum.status, forum.post_by AS author_id, profile.id AS author_id_profile, profile.name AS author_name, forum.votes${userId ? ", COALESCE(fv.vote,0) AS user_vote" : ""}
+        // NEW: Added profile.avatar AS author_avatar
+        const sql = `SELECT forum.id, forum.title, forum.description, forum.status, forum.post_by AS author_id, profile.id AS author_id_profile, profile.name AS author_name, profile.avatar AS author_avatar, forum.votes${userId ? ", COALESCE(fv.vote,0) AS user_vote" : ""}
                          FROM forum
                          JOIN profile ON forum.post_by = profile.id
                          ${joinUserVote}
@@ -139,7 +138,8 @@ const getRepliesByForumId = async (forumId, userId = null) => {
             params.unshift(userId);
         }
 
-        const sql = `SELECT forum_reply.id, forum_reply.content AS content, forum_reply.reply_of, profile.name AS replier_name, forum_reply.post_by, forum_reply.votes${userId ? ", COALESCE(frv.vote,0) AS user_vote" : ""}
+        // NEW: Added profile.avatar AS replier_avatar
+        const sql = `SELECT forum_reply.id, forum_reply.content AS content, forum_reply.reply_of, profile.name AS replier_name, profile.avatar AS replier_avatar, forum_reply.post_by, forum_reply.votes${userId ? ", COALESCE(frv.vote,0) AS user_vote" : ""}
                      FROM forum_reply
                      JOIN profile ON forum_reply.post_by = profile.id
                      ${joinUserVote}

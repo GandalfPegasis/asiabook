@@ -1,9 +1,11 @@
 const router = require("express").Router();
 
-const isAdmin = (req, res, next) => {
-    next();
-};
+const {
+    authMiddleware,
+    isAdmin,
+} = require("../../middleware/authMiddleware.js");
 
+router.use(authMiddleware);
 router.use(isAdmin);
 
 router.use("/dashboard", require("./dashboard.js"));

@@ -54,8 +54,6 @@ router.post("/signup", async (req, res) => {
         department,
     } = req.body;
 
-    console.log(req.body);
-
     if (!name || !email || !password || !confirmPassword) {
         return res.status(400).json({ error: "All fields are required" });
     }
@@ -178,6 +176,7 @@ router.post("/login", async (req, res) => {
                 email: user.email,
                 department: user.department,
                 role: user.role,
+                avatar: user.avatar,
                 admin: isAdmin,
             },
         });
@@ -214,18 +213,13 @@ router.post("/change-password", authMiddleware, async (req, res) => {
 
     const userId = req.user.id;
 
-    console.log(userId);
     try {
         const userData = await getUserById(userId);
-
-        console.log(userData);
 
         const validCurrentPassword = await validatePassword(
             currentPassword,
             userData.password,
         );
-
-        console.log(validCurrentPassword);
 
         if (!validCurrentPassword) {
             return res

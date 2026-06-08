@@ -3,7 +3,7 @@ const db = require("../database");
 const getFriendRequestByProfileId = async (profileId) => {
     try {
         const requests = await db.query(
-            `SELECT friend_request.id AS request_id, profile.name AS sender_name, profile.id AS sender_id
+            `SELECT friend_request.id AS request_id, profile.name AS sender_name, profile.id AS sender_id, profile.avatar as avatar
              FROM friend_request
              JOIN profile ON friend_request.requested_by = profile.id
              WHERE friend_request.requested_to = ?;`,
@@ -21,7 +21,7 @@ const getFriendRequestByProfileId = async (profileId) => {
 const getFriendsByProfileId = async (profileId) => {
     try {
         const friends = await db.query(
-            `SELECT DISTINCT profile.id, profile.name
+            `SELECT DISTINCT profile.id, profile.name, profile.avatar as avatar
              FROM friends
              JOIN profile ON (friends.profile_id_1 = profile.id OR friends.profile_id_2 = profile.id)
              WHERE (friends.profile_id_1 = ? OR friends.profile_id_2 = ?) AND profile.id != ?;`,
@@ -123,7 +123,7 @@ const declineFriendRequest = async (requestId, userId) => {
 const getFriendSuggestions = async (userId) => {
     try {
         const suggestions = await db.query(
-            `SELECT DISTINCT p.id, p.name
+            `SELECT DISTINCT p.id, p.name, p.avatar as avatar
              FROM profile p
              WHERE p.id != ?
              AND p.id NOT IN (

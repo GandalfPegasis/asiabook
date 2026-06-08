@@ -31,6 +31,7 @@ const fetchModerationData = async () => {
       apiClient.get('/admin/post/comments').catch(() => ({ data: { data: [] } })) 
     ]);
 
+    // Format Posts
     flaggedPosts.value = postsRes.data.data.map((post: any) => ({
       id: post.id,
       author: post.author_name,
@@ -47,7 +48,23 @@ const fetchModerationData = async () => {
       timestamp: new Date(post.created_at).toLocaleString()
     }));
 
-    flaggedComments.value = commentsRes.data?.data || [];
+    // FIXED: Format Comments using the exact same structure!
+    const rawComments = commentsRes.data?.data || [];
+    flaggedComments.value = rawComments.map((comment: any) => ({
+      id: comment.id,
+      author: comment.author_name,
+      authorInitials: comment.author_name ? comment.author_name.charAt(0).toUpperCase() : '?',
+      role: 'student', 
+      content: comment.content, // Comments use 'content' instead of 'caption'
+      hasImage: false,          // Comments don't have images in your schema
+      imageUrl: '',
+      reportReason: comment.reports?.length > 0 
+        ? comment.reports.map((r: any) => r.reason).join(', ') 
+        : 'Auto-flagged by System',
+      reportedBy: comment.report_count > 1 ? 'Multiple Users' : 'Community Member',
+      severity: comment.report_count >= 3 ? 'high' : 'medium',
+      timestamp: new Date(comment.created_at).toLocaleString()
+    }));
 
   } catch (error) {
     console.error("Failed to load moderation queue:", error);

@@ -31,32 +31,25 @@ const isUserSuspended = async (profileId) => {
     }
 };
 
+// NEW: Dynamic update query to handle optional Avatar uploads!
 const updateProfile = async (profileId, profileData) => {
     try {
-        const profileResults = await db.query(
-            `UPDATE profile
-            SET 
-                name = ?,
-                email = ?,
-                birth_date = ?,
-                nationality = ?,
-                role = ?,
-                department = ?,
-                language = ?,
-                contact_number = ?
-            WHERE id = ?;`,
-            [
-                profileData.name,
-                profileData.email,
-                profileData.birth_date,
-                profileData.nationality,
-                profileData.role,
-                profileData.department,
-                profileData.language,
-                profileData.contact_info,
-                profileId,
-            ],
-        );
+        const updates = [];
+        const values = [];
+
+        // Dynamically loop through the object passed from the router
+        for (const [key, value] of Object.entries(profileData)) {
+            updates.push(`${key} = ?`);
+            values.push(value);
+        }
+
+        // Add the profileId to the end of the values array for the WHERE clause
+        values.push(profileId);
+
+        // Join the columns together (e.g. "name = ?, email = ?, avatar = ?")
+        const query = `UPDATE profile SET ${updates.join(", ")} WHERE id = ?`;
+
+        const [profileResults] = await db.query(query, values);
 
         return profileResults;
     } catch (error) {

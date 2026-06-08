@@ -296,11 +296,13 @@ onMounted(() => {
             </div>
             <div class="request-badge">{{ friendRequests.length }}</div>
           </div>
-
           <div class="requests-grid">
-            <div v-for="request in friendRequests" :key="request.request_id" class="request-card">
+            <div v-for="request in friendRequests" :key="request.sender_id" class="request-card" @click="viewProfile(request.sender_id)" style="cursor: pointer;">
               <div class="request-avatar">
-                <div class="avatar-placeholder">{{ request.sender_name.charAt(0).toUpperCase() }}</div>
+                <div class="avatar-placeholder">
+                  <img v-if="request.avatar" :src="`http://localhost:3000${request.avatar}`" alt="Avatar" class="avatar-img" />
+                  <span v-else>{{ request.sender_name.charAt(0).toUpperCase() }}</span>
+                </div>
               </div>
               <div class="request-content">
                 <h3 class="request-name">{{ request.sender_name }}</h3>
@@ -332,7 +334,7 @@ onMounted(() => {
           </div>
 
           <div class="requests-grid">
-            <div v-for="request in sentRequests" :key="request.request_id" class="request-card">
+            <div v-for="request in sentRequests" :key="request.requested_to" class="request-card" @click="viewProfile(request.requested_to)" style="cursor: pointer;">
               <div class="request-avatar">
                 <div class="avatar-placeholder" style="background: linear-gradient(135deg, #94a3b8 0%, #cbd5e1 100%);">
                   {{ request.receiver_name.charAt(0).toUpperCase() }}
@@ -358,7 +360,7 @@ onMounted(() => {
               <Icon icon="mdi:account-heart" class="section-icon" />
               <div>
                 <h2>My Friends</h2>
-                <span class="section-meta">{{ friends.length }} friends</span>
+                <span class="section-meta">{{ friends.length }} friends connected</span>
               </div>
             </div>
           </div>
@@ -382,12 +384,16 @@ onMounted(() => {
 
           <div v-else class="friends-grid">
             <div v-for="friend in friends" :key="friend.id" class="friend-card">
-              <div class="friend-avatar">
-                <div class="avatar-placeholder">{{ friend.name.charAt(0).toUpperCase() }}</div>
-              </div>
-              <div class="friend-info">
-                <h3 class="friend-name">{{ friend.name }}</h3>
-                <p class="friend-status">Online</p>
+              <div class="friend-card-main">
+                <div class="friend-avatar">
+                  <div class="avatar-placeholder">
+                    <img v-if="friend.avatar" :src="`http://localhost:3000${friend.avatar}`" alt="Avatar" class="avatar-img" />
+                    <span v-else>{{ friend.name.charAt(0).toUpperCase() }}</span>
+                  </div>
+                </div>
+                <div class="friend-info">
+                  <h3 class="friend-name">{{ friend.name }}</h3>
+                </div>
               </div>
               <div class="friend-actions">
                 <button @click="sendMessage(friend.id, friend.name)" class="btn-message">
@@ -434,7 +440,10 @@ onMounted(() => {
           <div v-else class="suggestions-grid">
             <div v-for="suggestion in suggestions" :key="suggestion.id" class="suggestion-card">
               <div class="suggestion-avatar">
-                <div class="avatar-placeholder">{{ suggestion.name.charAt(0).toUpperCase() }}</div>
+                <div class="avatar-placeholder">
+                  <img v-if="suggestion.avatar" :src="`http://localhost:3000${suggestion.avatar}`" alt="Avatar" class="avatar-img" />
+                  <span v-else>{{ suggestion.name.charAt(0).toUpperCase() }}</span>
+                </div>
               </div>
               <div class="suggestion-info">
                 <h3 class="suggestion-name">{{ suggestion.name }}</h3>
@@ -918,29 +927,32 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.25rem;
-  padding: 1.5rem;
+  padding: 1.75rem;
 }
 
 .friend-card {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  justify-content: space-between;
   padding: 1.25rem;
-  background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%);
+  background: white;
   border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-lg);
   transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
 }
 
 .friend-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
-  border-color: var(--border-hover);
+  border-color: var(--primary-light);
 }
 
-.friend-avatar {
-  flex-shrink: 0;
+.friend-card-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .friend-info {
@@ -951,61 +963,67 @@ onMounted(() => {
 .friend-name {
   margin: 0 0 0.25rem 0;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .friend-status {
   margin: 0;
   color: var(--success-color);
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--success-color);
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .friend-actions {
   display: flex;
   gap: 0.5rem;
-  flex-shrink: 0;
+  width: 100%;
 }
 
-.btn-message,
-.btn-profile {
+.btn-message, .btn-profile {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   background: white;
 }
 
 .btn-message {
-  color: var(--primary-color);
-  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: white;
+  border: none;
 }
 
 .btn-message:hover {
-  background: var(--primary-color);
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.btn-profile {
-  color: var(--text-secondary);
+  background: var(--primary-dark);
 }
 
 .btn-profile:hover {
-  background: var(--text-secondary);
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  background: #f1f5f9;
+  color: var(--text-primary);
 }
-
 /* ===== Suggestions ===== */
 .suggestions-grid {
   display: grid;

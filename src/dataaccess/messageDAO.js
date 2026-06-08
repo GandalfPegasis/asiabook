@@ -18,7 +18,7 @@ const ensureTableExists = async () => {
 const getMessagesForUser = async (userId) => {
     try {
         const [rows] = await db.query(
-            `SELECT m.*, sender.name AS sender_name, receiver.name AS receiver_name
+            `SELECT m.*, sender.name AS sender_name, receiver.name AS receiver_name, sender.avatar as sender_avatar, receiver.avatar as receiver_avatar
        FROM messages m
        JOIN profile sender ON m.sender_id = sender.id
        JOIN profile receiver ON m.receiver_id = receiver.id

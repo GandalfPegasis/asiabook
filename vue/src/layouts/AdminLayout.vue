@@ -48,7 +48,12 @@ const handleLogout = () => {
       </nav>
 
       <div class="sidebar-footer">
-        <button class="exit-btn" @click="handleLogout">
+        <RouterLink :to="{ name: 'home' }" class="footer-btn return-btn">
+          <Icon icon="heroicons:arrow-uturn-left" class="nav-icon" />
+          <span>Back to Feed</span>
+        </RouterLink>
+
+        <button class="footer-btn logout-btn" @click="handleLogout">
           <Icon icon="mdi:arrow-left-box" class="nav-icon" />
           <span>Log out</span>
         </button>
@@ -169,6 +174,40 @@ const handleLogout = () => {
   border-top: 1px solid #e2e8f0;
   padding-top: 1.5rem;
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem; /* Creates a nice space between the two buttons */
+}
+
+/* Shared base styling for both footer buttons */
+.footer-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 14px;
+  transition: all 0.2s;
+  text-decoration: none; /* Keeps RouterLink text clean */
+  box-sizing: border-box;
+}
+
+/* Blue hover for returning to the app */
+.return-btn:hover {
+  background: #f1f5f9;
+  color: #6366f1;
+}
+
+/* Red hover for destructive logout action */
+.logout-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
 }
 
 .exit-btn {

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Icon } from '@iconify/vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 // Define the props
 defineProps<{
@@ -71,7 +74,9 @@ const handleShare = async (post: any) => {
     emit('share', post.id); 
   }
 };
-
+const viewProfile = (userId: number) => {
+  router.push(`/profile/${userId}`);
+};
 const isVideo = (url: string) => {
   if (!url) return false;
   const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
@@ -83,14 +88,14 @@ const isVideo = (url: string) => {
 <template>
   <div class="posts-wrapper">
     <article v-for="post in posts" :key="post.id" class="post-card">
-      
       <div class="post-header">
-        <div class="author-avatar">
-          {{ post.author?.charAt(0).toUpperCase() }}
+        <div class="author-avatar" @click="viewProfile(post.author_id)">
+          <img v-if="post.author_avatar" :src="`http://localhost:3000${post.author_avatar}`" alt="Avatar" class="avatar-img" style="cursor: pointer;"/>
+          <span v-else>{{ post.author?.charAt(0).toUpperCase() || 'U' }}</span>
         </div>
         <div class="author-meta">
           <div class="author-name-row">
-            <span class="author-name">{{ post.author }}</span>
+            <span class="author-name" @click="viewProfile(post.author_id)" style="cursor: pointer;">{{ post.author }}</span>
             <span class="author-role">{{ post.role }}</span>
           </div>
           <span class="post-time">{{ post.timeAgo }}</span>

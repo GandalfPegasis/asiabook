@@ -25,7 +25,7 @@ async function getClubById(id) {
 
 async function getClubMembers(clubId) {
     const [rows] = await pool.query(
-        `SELECT cm.id, cm.profile_id, p.name as profile_name, cm.role
+        `SELECT cm.id, cm.profile_id, p.name as profile_name, cm.role, p.avatar as avatar
 		 FROM club_members cm
 		 JOIN profile p ON p.id = cm.profile_id
 		 WHERE cm.club_id = ?`,

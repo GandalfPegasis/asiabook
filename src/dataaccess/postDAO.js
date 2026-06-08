@@ -1,11 +1,14 @@
 const db = require("../database");
 
+// 1. GET POSTS BY PROFILE ID (Updated to include author details and avatars)
 const getPostByProfileId = async (profileId) => {
     try {
         const [postResults] = await db.query(
             `SELECT 
                 p.id AS post_id, 
                 p.caption,
+                prof.name AS author_name,
+                prof.avatar AS author_avatar, -- NEW: Added profile avatar
                 
                 -- Packages all matching picture locations into a single JSON array
                 (
@@ -15,8 +18,9 @@ const getPostByProfileId = async (profileId) => {
                 ) AS images
 
             FROM posts p
+            JOIN profile prof ON p.posted_by = prof.id -- NEW: Joined profile
             WHERE p.posted_by = ?
-            ORDER BY p.id DESC;`, // Highly recommend sorting newest to oldest!
+            ORDER BY p.id DESC;`,
             [profileId],
         );
 
@@ -27,6 +31,7 @@ const getPostByProfileId = async (profileId) => {
     }
 };
 
+// 2. GET SINGLE POST BY ID
 const getPostById = async (postId) => {
     try {
         const [rows] = await db.query(
@@ -36,6 +41,7 @@ const getPostById = async (postId) => {
                 p.likes, 
                 p.created_at, 
                 p.status,
+                u.avatar AS author_avatar, -- FIXED: Changed from p.avatar to u.avatar
                 u.name AS author_name, 
                 u.role AS author_role
              FROM posts p
@@ -44,13 +50,13 @@ const getPostById = async (postId) => {
             [postId],
         );
 
-        // If a post is found, return the first row. Otherwise, return null.
         return rows.length > 0 ? rows[0] : null;
     } catch (error) {
         throw error;
     }
 };
 
+// 3. GET GLOBAL FEED POSTS
 const getPosts = async (limit, offset, userId) => {
     try {
         let sql = "";
@@ -61,10 +67,11 @@ const getPosts = async (limit, offset, userId) => {
                 SELECT 
                     p.id AS post_id,
                     p.caption,
+                    prof.id AS author_id,
                     prof.name AS author_name,
                     p.likes,
+                    prof.avatar AS author_avatar,
                     
-                    -- Returns an actual JSON array of strings, or an empty array if null
                     COALESCE(
                         (SELECT JSON_ARRAYAGG(pp.location) 
                         FROM post_picture pp 
@@ -73,63 +80,48 @@ const getPosts = async (limit, offset, userId) => {
                     ) AS images,
                     
                     COUNT(DISTINCT cp.id) AS comment_count,
-                    p.created_at,
-                    
-                    -- Pure Trending Score (No Friend Bonus)
-                    (
-                        (p.likes + (COUNT(DISTINCT cp.id) * 3)) 
-                        / 
-                        POWER(TIMESTAMPDIFF(HOUR, p.created_at, NOW()) + 2, 1.5)
-                    ) AS feed_score
+                    p.created_at
 
                 FROM posts p
                 JOIN profile prof ON p.posted_by = prof.id
                 LEFT JOIN post_comments cp ON p.id = cp.post_id
 
-                GROUP BY p.id, p.caption, prof.name, p.likes, p.created_at
-                ORDER BY feed_score DESC
+                GROUP BY p.id, p.caption, prof.name, p.likes, p.created_at, prof.avatar
+                ORDER BY p.created_at DESC
                 LIMIT ? OFFSET ?;
             `;
-            // Only pass limit and offset
             queryParams = [limit, offset];
         } else {
             sql = `
                 SELECT 
                     p.id AS post_id,
                     p.caption,
+                    prof.id AS author_id,
                     prof.name AS author_name,
                     p.likes,
+                    prof.avatar AS author_avatar,
                     GROUP_CONCAT(DISTINCT pp.location SEPARATOR ',') AS images,
                     COUNT(DISTINCT cp.id) AS comment_count,
                     p.created_at,
-
-                    -- Score INCLUDING the 50-point Friend Bonus
-                    (
-                        (p.likes + (COUNT(DISTINCT cp.id) * 3) + IF(f.id IS NOT NULL, 50, 0)) 
-                        / 
-                        POWER(TIMESTAMPDIFF(HOUR, p.created_at, NOW()) + 2, 1.5)
-                    ) AS feed_score
+                    IF(f.id IS NOT NULL, true, false) AS is_friend
 
                 FROM posts p
                 JOIN profile prof ON p.posted_by = prof.id
                 LEFT JOIN post_picture pp ON p.id = pp.post_id
                 LEFT JOIN post_comments cp ON p.id = cp.post_id
                 
-                -- Join friends table using the logged-in User ID
                 LEFT JOIN friends f ON 
                     (f.profile_id_1 = ? AND f.profile_id_2 = p.posted_by) OR 
                     (f.profile_id_1 = p.posted_by AND f.profile_id_2 = ?)
 
-                GROUP BY p.id, p.caption, prof.name, p.likes, p.created_at, f.id
-                ORDER BY feed_score DESC
+                GROUP BY p.id, p.caption, prof.name, p.likes, p.created_at, f.id, prof.avatar
+                ORDER BY p.created_at DESC
                 LIMIT ? OFFSET ?;
             `;
-            // Pass the userId twice (for the OR condition), then limit and offset
             queryParams = [userId, userId, limit, offset];
         }
 
         const [result] = await db.query(sql, queryParams);
-
         return result;
     } catch (err) {
         console.error("Error fetching posts:", err);
@@ -137,21 +129,17 @@ const getPosts = async (limit, offset, userId) => {
     }
 };
 
+// 4. CREATE NEW POST
 async function createPost(posted_by, caption, mediaPaths) {
-    // 1. Insert the main post
     const [postResult] = await db.query(
-        `INSERT INTO posts (posted_by, caption) 
-         VALUES (?, ?)`,
+        `INSERT INTO posts (posted_by, caption) VALUES (?, ?)`,
         [posted_by, caption],
     );
 
     const postId = postResult.insertId;
 
-    // 2. If there are media files, bulk insert them into post_picture
     if (mediaPaths && mediaPaths.length > 0) {
-        // Create an array of arrays for bulk insertion: [[postId, '/path1.png'], [postId, '/path2.mp4']]
         const pictureValues = mediaPaths.map((path) => [postId, path]);
-
         await db.query(
             `INSERT INTO post_picture (post_id, location) VALUES ?`,
             [pictureValues],
@@ -160,10 +148,10 @@ async function createPost(posted_by, caption, mediaPaths) {
 
     return postId;
 }
-// --- NEW LIKES METHODS ---
+
+// 5. UPDATE LIKES
 const updateLikeCount = async (postId, increment) => {
     try {
-        // IFNULL prevents errors if previous posts have NULL in the likes column
         const query = increment
             ? `UPDATE posts SET likes = IFNULL(likes, 0) + 1 WHERE id = ?`
             : `UPDATE posts SET likes = GREATEST(IFNULL(likes, 0) - 1, 0) WHERE id = ?`;
@@ -176,26 +164,26 @@ const updateLikeCount = async (postId, increment) => {
     }
 };
 
-// --- NEW COMMENTS METHODS ---
+// 6. GET POST COMMENTS
 const getCommentsByPostId = async (postId) => {
-    try {
-        const [rows] = await db.query(
-            `
-            SELECT pc.id, pc.content, pr.name AS comment_by_name
-            FROM post_comments pc
-            JOIN profile pr ON pc.comment_by = pr.id
-            WHERE pc.post_id = ?
-            ORDER BY pc.id ASC
-        `,
-            [postId],
-        );
-        return rows;
-    } catch (error) {
-        console.error("Error fetching comments:", error);
-        throw error;
-    }
+    const [rows] = await db.query(
+        `
+        SELECT 
+            c.id, c.content, c.created_at, 
+            p.name AS author_name, 
+            p.role AS author_role,
+            p.avatar AS author_avatar
+        FROM post_comments c
+        JOIN profile p ON c.comment_by = p.id
+        WHERE c.post_id = ? AND c.status != 'suspended'
+        ORDER BY c.created_at ASC
+    `,
+        [postId],
+    );
+    return rows;
 };
 
+// 7. ADD COMMENT
 const addComment = async (postId, commentBy, content) => {
     try {
         const sql =

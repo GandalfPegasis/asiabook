@@ -46,7 +46,7 @@ const fetchPosts = async (isLoadMore = false) => {
   try {
     const response = await apiClient.get(`/posts/?page=${currentPage.value}`);
     const data = response.data;
-    
+    console.log(data);
     if (data.length < 10) {
       hasMorePosts.value = false;
     }
@@ -61,7 +61,9 @@ const fetchPosts = async (isLoadMore = false) => {
       likes: post.likes || 0,
       comments: post.comment_count || 0,
       hasLiked: false, 
-      isLiking: false 
+      isLiking: false,
+      author_avatar: post.author_avatar,
+      author_id: post.author_id
     }));
 
     if (isLoadMore) {

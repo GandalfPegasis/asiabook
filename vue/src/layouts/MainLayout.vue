@@ -81,14 +81,18 @@ const handleDeleteAccount = async () => {
               @click="showProfileMenu = !showProfileMenu"
               :aria-expanded="showProfileMenu">
               <div class="profile-avatar">
-                {{ user?.name?.charAt(0).toUpperCase() }}
-              </div>
+                <img v-if="user?.avatar" :src="`http://localhost:3000${user.avatar}`" alt="Avatar" class="avatar-img" />
+                <span v-else>{{ user?.name?.charAt(0).toUpperCase() }}</span>
+              </div>  
             </button>
 
             <transition name="dropdown">
               <div v-if="showProfileMenu" class="dropdown-menu">
                 <div class="dropdown-header">
-                  <div class="header-avatar">{{ user?.name?.charAt(0).toUpperCase() }}</div>
+                  <div class="header-avatar">
+                    <img v-if="user?.avatar" :src="`http://localhost:3000${user.avatar}`" alt="Avatar" class="avatar-img" />
+                    <span v-else>{{ user?.name?.charAt(0).toUpperCase() }}</span>
+                  </div>
                   <div>
                     <div class="header-name">{{ user?.name }}</div>
                     <div class="header-email">{{ user?.email }}</div>
@@ -131,8 +135,6 @@ const handleDeleteAccount = async () => {
 </template>
 
 <style scoped>
-/* Keep all your existing CSS exactly as is, I just added a tiny optional class for the admin link below */
-
 .main-layout { display: flex; flex-direction: column; min-height: 100vh; }
 .app-header { background: white; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); position: sticky; top: 0; z-index: 2000; }
 .header-content { max-width: 1400px; margin: 0 auto; padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 70px; }
@@ -142,8 +144,6 @@ const handleDeleteAccount = async () => {
 
 .nav-item.router-link-exact-active { color: #6366f1; border-bottom-color: #6366f1; }
 .nav-item.router-link-active:not(.home-link) { color: #6366f1; border-bottom-color: #6366f1; }
-
-/* NEW: Optional styling to make the Admin link stand out slightly */
 .nav-item.admin-link.router-link-active { color: #ef4444; border-bottom-color: #ef4444; }
 
 .nav-icon { font-size: 1.3rem; }
@@ -151,10 +151,20 @@ const handleDeleteAccount = async () => {
 .profile-dropdown { position: relative; }
 .profile-button { background: none; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease; }
 .profile-button:hover { transform: scale(1.05); }
-.profile-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1.1rem; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); }
+
+.profile-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1.1rem; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); overflow: hidden; }
+.header-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1rem; flex-shrink: 0; overflow: hidden; }
+
+/* NEW: Avatar image properties to avoid distorting */
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 .dropdown-menu { position: absolute; right: 0; top: 100%; margin-top: 0.75rem; background: white; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12); min-width: 260px; overflow: hidden; z-index: 1000; }
 .dropdown-header { padding: 1rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 0.75rem; }
-.header-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
 .header-name { font-weight: 600; color: #1e293b; font-size: 0.95rem; }
 .header-email { color: #64748b; font-size: 0.85rem; }
 .dropdown-item { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem 1rem; background: none; border: none; text-align: left; color: #1e293b; font-weight: 500; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; text-decoration: none; }

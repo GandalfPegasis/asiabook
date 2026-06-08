@@ -8,6 +8,7 @@ export interface UserInterface {
     name: string,
     role: string,
     admin: boolean
+    avatar?: string
 }
 
 // Global state outside the function so it persists across component usages
@@ -152,6 +153,31 @@ export function useAuth() {
         }
     };
 
+    // Updates specific fields in the current user's session
+    const updateUserSession = (updatedFields: Partial<UserInterface>) => {
+        // 1. Update the reactive state if it exists
+        if (user.value) {
+            user.value = { ...user.value, ...updatedFields };
+        }
+
+        // 2. Update localStorage to ensure persistence on refresh
+        const storedUser = localStorage.getItem('auth_user');
+        if (storedUser) {
+            try {
+                const parsedUser = JSON.parse(storedUser);
+                const newStoredUser = { ...parsedUser, ...updatedFields };
+                localStorage.setItem('auth_user', JSON.stringify(newStoredUser));
+                
+                // If reactive state was null for some reason, sync it up now
+                if (!user.value) {
+                    user.value = newStoredUser;
+                }
+            } catch (e) {
+                console.error("Failed to update user in local storage", e);
+            }
+        }
+    };
+
     return {
         isAuthenticated: computed(() => isAuthenticated.value),
         user: computed(() => user.value),
@@ -162,6 +188,7 @@ export function useAuth() {
         logout,
         deleteAccount,
         getUserId,
-        isAdmin
+        isAdmin,
+        updateUserSession
     };
 }

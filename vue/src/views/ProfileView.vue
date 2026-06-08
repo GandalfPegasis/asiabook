@@ -17,7 +17,8 @@
       <header class="profile-header-card">
         <div class="header-main">
           <div class="avatar">
-            {{ users.name.charAt(0).toUpperCase() }}
+            <img v-if="users.avatar" :src="`http://localhost:3000${users.avatar}`" alt="Avatar" class="avatar-img" />
+            <span v-else>{{ users.name?.charAt(0).toUpperCase() || 'U' }}</span>
           </div>
           <div class="header-info">
             <h1>{{ users.name }}</h1>
@@ -59,7 +60,7 @@
               </div>
               <div class="detail-item">
                 <span class="label">Contact</span>
-                <span v-if="users.contact_info" class="value"> {{ users.contact_info }}</span>
+                <span v-if="users.contact_number" class="value"> {{ users.contact_number }}</span>
                 <Icon v-else icon="mdi:ghost-outline" class="value"/>
               </div>
             </div>
@@ -97,15 +98,16 @@
             <div v-else-if="friendsError" class="friends-status error-text">
               {{ friendsError }}
             </div>
-
+            
             <ul v-else-if="friends?.friends?.length > 0" class="friends-list">
               <li v-for="friend in friends.friends" :key="friend.id">
                 <RouterLink 
                   :to="{ name: 'profile', params: { id: friend.id } }" 
                   class="friend-item"
                 >
-                  <div class="friend-avatar">
-                    {{ friend.name.charAt(0).toUpperCase() }}
+                  <div class="friend-avatar profile-avatar">
+                    <img v-if="friend?.avatar" :src="`http://localhost:3000${friend.avatar}`" alt="Avatar" class="avatar-img" />
+                    <span v-else>{{ friend?.name?.charAt(0).toUpperCase() }}</span>
                   </div>
                   <span class="friend-name">{{ friend.name }}</span>
                 </RouterLink>
@@ -135,12 +137,11 @@
                     </button>
                   </div>
                 </div>
-                
                 <div v-if="activeTab === 'feed'">
                   <CreatePostForm v-if="!route.params.id" @post-created="fetchProfile" />
 
                   <div v-if="formattedProfilePosts.length > 0">
-                    <ListPost :posts="formattedProfilePosts" @like="handleLike" />
+                    <ListPost :posts="formattedProfilePosts" @like="handleLike" @report="handleReport" @comment="handleCommentClick"/>
                   </div>
                   <div v-else class="empty-posts">
                       <Icon icon="mdi:text-box-remove-outline" class="empty-icon" />
@@ -223,6 +224,7 @@ interface User {
   department: string;
   language: string;
   contact_info: string;
+  author_avatar: string;
   posts: Post[];
   clubs?: ClubSummary[]; // NEW
   forum_posts?: ForumPostSummary[]; // NEW
@@ -272,6 +274,7 @@ const fetchProfile = async () => {
     
     const response = await apiClient.get<User>(endpoint);
     users.value = response.data;
+    console.log(users.value);
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'An error occurred while loading the profile.';
   } finally {
@@ -305,6 +308,7 @@ const formattedProfilePosts = computed(() => {
         role: users.value!.role || 'Member',
         caption: post.caption,
         images: post.images || [],
+        author_avatar: users.value!.avatar,
         timeAgo: formatDate(post.created_at) || 'Recently',
         likes: post.likes || 0,
         comments: post.comment_count || 0,
@@ -337,6 +341,24 @@ const handleRouteChange = () => {
 
   fetchProfile();
   fetchFriends();
+};
+
+const handleReport = async (payload: { postId: number; reason: string }) => {
+  try {
+    // Hits the route: POST /posts/:id/report
+    await apiClient.post(`/posts/${payload.postId}/report`, {
+      reason: payload.reason
+    });
+    console.log(`Successfully reported post ${payload.postId} for ${payload.reason}`);
+  } catch (error) {
+    console.error('Failed to report post:', error);
+    alert('There was an error submitting your report.');
+  }
+}
+
+const handleCommentClick = (postId: number) => {
+  // Redirects the user to the dedicated post page we built!
+  router.push(`/post/${postId}`);
 };
 
 onMounted(() => {

@@ -39,7 +39,13 @@ router.get("/conversations", async (req, res) => {
                     ? 1
                     : 0;
 
+            const avatar =
+                message.sender_id === CURRENT_USER_ID
+                    ? message.receiver_avatar
+                    : message.sender_avatar;
+
             const existing = conversationsMap.get(contactId);
+
             if (!existing) {
                 conversationsMap.set(contactId, {
                     id: contactId,
@@ -47,6 +53,7 @@ router.get("/conversations", async (req, res) => {
                     last_message: lastMessage,
                     last_at: lastAt,
                     unreadCount,
+                    avatar: avatar,
                 });
             } else {
                 if (new Date(lastAt) > new Date(existing.last_at)) {
@@ -84,7 +91,7 @@ router.get("/conversations/:contactId", async (req, res) => {
             return res.status(404).json({ error: "Contact profile not found" });
         }
 
-        res.json({ conversation, contact: contactProfile[0] });
+        res.json({ conversation, contact: contactProfile });
     } catch (err) {
         console.error("Failed to load conversation:", err);
         res.status(500).json({ error: err.message });

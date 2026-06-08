@@ -30,6 +30,13 @@ const clubFilter = ref('all')
 const expandedThreadId = ref<number | null>(null)
 const flaggedCount = ref(0)
 
+// --- MODAL STATE ---
+const showModal = ref(false)
+const modalMode = ref<'deleteThread' | 'deleteReply' | 'error' | null>(null)
+const modalPayload = ref<any>(null)
+const isProcessing = ref(false)
+const modalError = ref('') // Used to display errors inside the modal
+
 // 1. FETCH FORUMS
 const fetchForums = async () => {
   try {
@@ -55,6 +62,23 @@ const fetchForums = async () => {
   }
 }
 
+interface ClubOption {
+  id: number;
+  title: string;
+}
+const availableClubs = ref<ClubOption[]>([]);
+
+const fetchAvailableClubs = async () => {
+  try {
+    // We can reuse the admin club route you built earlier!
+    const res = await apiClient.get('/admin/club');
+    // Assuming the backend returns an array of clubs with {id, title, ...}
+    availableClubs.value = res.data; 
+  } catch (e) {
+    console.error("Failed to fetch clubs list for filter:", e);
+  }
+}
+
 // Watchers for Server-Side Filtering (with 300ms debounce)
 let searchTimeout: any;
 watch([searchQuery, clubFilter], () => {
@@ -66,6 +90,7 @@ watch([searchQuery, clubFilter], () => {
 
 onMounted(() => {
   fetchForums();
+  fetchAvailableClubs();
 })
 
 // Toggle the thread row to see the replies inside
@@ -73,27 +98,28 @@ const toggleThread = (id: number) => {
   expandedThreadId.value = expandedThreadId.value === id ? null : id
 }
 
-// 2. MODERATION ACTIONS
-const deleteReply = async (threadId: number, replyId: number) => {
-  if (!confirm('Delete this specific reply? This will cascade and delete any nested replies.')) return;
-
-  const thread = forums.value.find(f => f.id === threadId);
-  if (!thread) return;
-
-  // Optimistic UI Update
-  const originalReplies = [...thread.replies];
-  thread.replies = thread.replies.filter(r => r.id !== replyId);
-
-  try {
-    await apiClient.delete(`/admin/replies/${replyId}`);
-  } catch (error) {
-    console.error(error);
-    // Revert if API fails
-    thread.replies = originalReplies;
-    alert("Failed to delete reply.");
-  }
+// --- MODAL PROMPTS ---
+const promptDeleteThread = (threadId: number) => {
+  modalMode.value = 'deleteThread';
+  modalPayload.value = threadId;
+  modalError.value = '';
+  showModal.value = true;
 }
 
+const promptDeleteReply = (threadId: number, replyId: number) => {
+  modalMode.value = 'deleteReply';
+  modalPayload.value = { threadId, replyId };
+  modalError.value = '';
+  showModal.value = true;
+}
+
+const showErrorModal = (message: string) => {
+  modalMode.value = 'error';
+  modalError.value = message;
+  showModal.value = true;
+}
+
+// 2. MODERATION ACTIONS
 const toggleThreadLock = async (forum: Forum) => {
   const originalStatus = forum.status;
   const newStatus = forum.status === 'locked' ? 'active' : 'locked';
@@ -111,25 +137,46 @@ const toggleThreadLock = async (forum: Forum) => {
     console.error(error);
     // Revert if API fails
     forum.status = originalStatus;
-    alert("Failed to update thread lock status.");
+    showErrorModal("Failed to update thread lock status. Please try again.");
   }
 }
 
-const deleteThread = async (threadId: number) => {
-  if (!confirm('CRITICAL: Delete this entire forum thread and all its replies?')) return;
+// Execute the action confirmed inside the modal
+const executeModalAction = async () => {
+  if (modalMode.value === 'error') {
+    showModal.value = false;
+    return;
+  }
 
-  // Optimistic UI Update
-  const originalForums = [...forums.value];
-  forums.value = forums.value.filter(f => f.id !== threadId);
+  isProcessing.value = true;
+  modalError.value = '';
 
   try {
-    await apiClient.delete(`/admin/forums/${threadId}`);
-    flaggedCount.value = forums.value.filter(f => f.status === 'flagged').length; // Update KPI
-  } catch (error) {
+    if (modalMode.value === 'deleteThread') {
+      const threadId = modalPayload.value;
+      await apiClient.delete(`/admin/forums/${threadId}`);
+      
+      forums.value = forums.value.filter(f => f.id !== threadId);
+      flaggedCount.value = forums.value.filter(f => f.status === 'flagged').length;
+    } 
+    else if (modalMode.value === 'deleteReply') {
+      const { threadId, replyId } = modalPayload.value;
+      await apiClient.delete(`/admin/replies/${replyId}`);
+      
+      const thread = forums.value.find(f => f.id === threadId);
+      if (thread) {
+        thread.replies = thread.replies.filter(r => r.id !== replyId);
+      }
+    }
+    
+    showModal.value = false;
+    modalPayload.value = null;
+
+  } catch (error: any) {
     console.error(error);
-    // Revert if API fails
-    forums.value = originalForums;
-    alert("Failed to delete thread.");
+    modalError.value = error.response?.data?.error || "Failed to complete the action.";
+  } finally {
+    isProcessing.value = false;
   }
 }
 </script>
@@ -167,8 +214,15 @@ const deleteThread = async (threadId: number) => {
         <Icon icon="heroicons:funnel" class="filter-icon" />
         <select v-model="clubFilter" class="club-select">
           <option value="all">All Clubs & Groups</option>
-          <option value="Software Engineering Hub">Software Engineering Hub</option>
-          <option value="Taiwan Riders">Taiwan Riders</option>
+          
+          <option 
+            v-for="club in availableClubs" 
+            :key="club.id" 
+            :value="club.title"
+          >
+            {{ club.title }}
+          </option>
+
           <option value="General (No Club)">General (No Club)</option>
         </select>
       </div>
@@ -226,7 +280,7 @@ const deleteThread = async (threadId: number) => {
               >
                 <Icon :icon="forum.status === 'locked' ? 'heroicons:lock-open' : 'heroicons:lock-closed'" />
               </button>
-              <button class="action-btn delete" @click="deleteThread(forum.id)" title="Delete Thread">
+              <button class="action-btn delete" @click="promptDeleteThread(forum.id)" title="Delete Thread">
                 <Icon icon="heroicons:trash" />
               </button>
             </td>
@@ -253,7 +307,7 @@ const deleteThread = async (threadId: number) => {
                     </div>
                     <div class="reply-body">
                       <p class="reply-content">{{ reply.content }}</p>
-                      <button class="small-delete-btn" @click="deleteReply(forum.id, reply.id)">
+                      <button class="small-delete-btn" @click="promptDeleteReply(forum.id, reply.id)">
                         <Icon icon="heroicons:x-mark" /> Delete Reply
                       </button>
                     </div>
@@ -264,7 +318,7 @@ const deleteThread = async (threadId: number) => {
           </tr>
         </tbody>
         
-        <tr v-if="forums.length === 0">
+        <tr v-if="forums.length === 0 && !isLoading">
           <td colspan="5" class="empty-state-card">
             <Icon icon="heroicons:check-badge" class="empty-icon" />
             <h2>All caught up!</h2>
@@ -273,6 +327,53 @@ const deleteThread = async (threadId: number) => {
         </tr>
 
       </table>
+    </div>
+
+    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+      <div class="modal-card">
+        
+        <div class="modal-header text-danger">
+          <Icon 
+            :icon="modalMode === 'error' ? 'heroicons:exclamation-triangle' : 'heroicons:trash'" 
+            width="36" 
+          />
+          <h2>
+            <template v-if="modalMode === 'deleteThread'">Delete Thread?</template>
+            <template v-else-if="modalMode === 'deleteReply'">Delete Reply?</template>
+            <template v-else>Action Failed</template>
+          </h2>
+        </div>
+
+        <p class="modal-body" v-if="modalMode !== 'error'">
+          <template v-if="modalMode === 'deleteThread'">
+            Are you sure you want to permanently delete this thread? This will cascade and permanently wipe all nested replies. This <strong>cannot be undone</strong>.
+          </template>
+          <template v-else-if="modalMode === 'deleteReply'">
+            Are you sure you want to delete this specific reply? This <strong>cannot be undone</strong>.
+          </template>
+        </p>
+
+        <div v-if="modalError" class="alert error mb-4">
+          <Icon icon="mdi:alert-circle" />
+          <span>{{ modalError }}</span>
+        </div>
+
+        <div class="modal-actions">
+          <button v-if="modalMode !== 'error'" class="btn-cancel" @click="showModal = false" :disabled="isProcessing">
+            Cancel
+          </button>
+          <button 
+            :class="['flex-fill', modalMode === 'error' ? 'btn-cancel' : 'btn-danger']" 
+            @click="executeModalAction" 
+            :disabled="isProcessing"
+          >
+            <Icon v-if="isProcessing" icon="eos-icons:loading" class="spin-icon" />
+            <span v-if="modalMode === 'error'">Dismiss</span>
+            <span v-else>{{ isProcessing ? 'Deleting...' : 'Yes, Delete' }}</span>
+          </button>
+        </div>
+
+      </div>
     </div>
 
   </div>
@@ -334,7 +435,7 @@ const deleteThread = async (threadId: number) => {
   outline: none;
   background: #f8fafc;
 }
-.search-input:focus, .club-select:focus { border-color: #6366f1; }
+.search-input:focus, .club-select:focus { border-color: #6366f1; background: white; }
 
 /* Table */
 .table-card {
@@ -342,6 +443,7 @@ const deleteThread = async (threadId: number) => {
   border-radius: 20px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
 .admin-table { width: 100%; border-collapse: collapse; }
@@ -392,23 +494,21 @@ const deleteThread = async (threadId: number) => {
 /* Empty State */
 .empty-state-card {
   text-align: center;
-  padding: 5rem 2rem !important; /* Forces it to be taller than a normal row */
+  padding: 5rem 2rem !important;
   background-color: #f8fafc;
 }
 .empty-icon { 
   font-size: 4rem; 
-  color: #10b981; /* Emerald green */
+  color: #10b981;
   margin-bottom: 1rem; 
+  opacity: 0.5;
 }
 .empty-state-card h2 { 
   margin: 0 0 0.5rem 0; 
   color: #0f172a; 
   font-size: 1.5rem;
 }
-.empty-state-card p { 
-  margin: 0; 
-  color: #64748b; 
-}
+.empty-state-card p { margin: 0; color: #64748b; }
 
 /* Actions */
 .text-right { text-align: right; }
@@ -419,7 +519,7 @@ const deleteThread = async (threadId: number) => {
 .action-btn.delete:hover { color: #ef4444; border-color: #fecaca; background: #fef2f2; }
 
 /* Nested Replies Drawer */
-.drawer-row td { padding: 0; border-bottom: 2px solid #e2e8f0; }
+.drawer-row td { padding: 0; border-bottom: 1px solid #e2e8f0; }
 .replies-container { background: #f8fafc; padding: 2rem 4rem; box-shadow: inset 0 4px 6px -4px rgba(0,0,0,0.05); }
 .drawer-title { margin: 0 0 1.5rem 0; color: #0f172a; font-size: 1rem; }
 
@@ -440,4 +540,35 @@ const deleteThread = async (threadId: number) => {
   display: flex; align-items: center; gap: 0.25rem; background: transparent; border: 1px solid #fecaca; color: #ef4444; padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: 0.2s; white-space: nowrap;
 }
 .small-delete-btn:hover { background: #ef4444; color: white; }
+
+/* =========================================
+   MODAL STYLES
+========================================= */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+.modal-card { background: white; width: 90%; max-width: 450px; border-radius: 20px; padding: 2rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); animation: modal-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+
+.modal-header { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin-bottom: 1rem; text-align: center; }
+.modal-header h2 { font-size: 1.5rem; margin: 0; }
+.text-danger { color: #dc2626; }
+.text-warning { color: #d97706; }
+
+.modal-body { text-align: center; color: #475569; line-height: 1.6; margin-bottom: 1.5rem; }
+.modal-body strong { color: #0f172a; }
+
+.modal-actions { display: flex; gap: 1rem; }
+.btn-cancel { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s; flex: 1; }
+.btn-cancel:hover:not(:disabled) { background: #f8fafc; color: #0f172a; }
+
+.flex-fill { flex: 1; }
+.btn-danger { display: flex; align-items: center; justify-content: center; gap: 0.5rem; color: white; border: none; padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: #dc2626; }
+.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+.btn-danger:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.alert { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.9rem; font-weight: 500; }
+.alert.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.mb-4 { margin-bottom: 1rem; }
+
+.spin-icon { animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes modal-pop { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
 </style>

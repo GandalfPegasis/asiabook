@@ -17,7 +17,6 @@ router.get("/", async (req, res) => {
         const clubsData = await getClubs(search, status);
         res.json(clubsData);
     } catch (e) {
-        console.log(e);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
@@ -95,9 +94,8 @@ router.delete("/:id", async (req, res) => {
 // Get pending requests
 router.get("/club-requests", async (req, res) => {
     try {
-        console.log("kontol memek");
         const requests = await getPendingClubRequests();
-        console.log(requests);
+
         res.json(requests);
     } catch (error) {
         res.status(500).json({ error: "Failed to load requests" });

@@ -5,11 +5,12 @@ import { Icon } from '@iconify/vue'
 import { apiClient } from '@/api/api'
 import { useAuth } from '@/composables/useAuth'
 
-const { getUserId } = useAuth(); 
+const { getUserId, user } = useAuth(); 
 
 const route = useRoute()
 const router = useRouter()
 const postId = route.params.id
+
 
 // State
 const post = ref<any>(null)
@@ -56,17 +57,15 @@ const submitComment = async () => {
     isSubmitting.value = true
     
     const res = await apiClient.post(`/posts/${postId}/comments`, {
-      userId: getUserId,
+      userId: getUserId(), // FIXED: Added () so it actually gets the ID number
       content: newComment.value
     })
 
-
-    console.log(res);
-
+    // FIXED: Use the actual logged-in user's name instead of 'You'
     comments.value.push({
-      id: res.data.id,
-      author_name: 'You', 
-      author_role: 'student',
+      id: res.data.id || Date.now(),
+      author_name: user.value?.name || 'You', 
+      author_role: user.value?.role || 'student',
       content: newComment.value,
       created_at: new Date().toISOString()
     })
@@ -80,7 +79,6 @@ const submitComment = async () => {
     isSubmitting.value = false
   }
 }
-
 // --- NEW: REPORT MODAL LOGIC ---
 const openReportModal = (commentId: number) => {
   selectedCommentId.value = commentId
@@ -159,7 +157,10 @@ onMounted(() => {
       
       <article class="main-post-card">
         <div class="post-header">
-          <div class="author-avatar">{{ post.author_name?.charAt(0).toUpperCase() || 'U' }}</div>
+          <div class="author-avatar">
+            <img v-if="post.author_avatar" :src="`http://localhost:3000${post.author_avatar}`" alt="Avatar" class="avatar-img" />
+            <span v-else>{{ post.author_name?.charAt(0).toUpperCase() || 'U' }}</span>
+          </div>
           <div class="author-meta">
             <div class="author-name-row">
               <span class="author-name">{{ post.author_name || 'Unknown User' }}</span>
@@ -180,7 +181,10 @@ onMounted(() => {
         <h3 class="comments-title">Comments ({{ comments.length }})</h3>
 
         <div class="comment-input-area">
-          <div class="author-avatar small">Y</div>
+          <div class="author-avatar small">
+            <img v-if="post.author_avatar" :src="`http://localhost:3000${post.author_avatar}`" alt="Avatar" class="avatar-img" />
+            <span v-else>{{ post.author_name?.charAt(0).toUpperCase() || 'U' }}</span>
+          </div>
           <div class="input-wrapper">
             <textarea 
               v-model="newComment" 
@@ -208,13 +212,17 @@ onMounted(() => {
             <Icon icon="heroicons:chat-bubble-oval-left-ellipsis" class="empty-icon" />
             <p>No comments yet. Be the first to start the discussion!</p>
           </div>
-          
+
           <div v-for="comment in comments" :key="comment.id" class="comment-item">
-            <div class="author-avatar small">{{ comment.author_name?.charAt(0).toUpperCase() || 'U' }}</div>
+            <div class="author-avatar">
+              <img v-if="post.author_avatar" :src="post.author_avatar" alt="Avatar" class="avatar-img" />
+              <span v-else>{{ post.author_name?.charAt(0).toUpperCase() || 'U' }}</span>
+            </div>
+            
             <div class="comment-content">
               <div class="comment-bubble">
                 <div class="comment-author">
-                  <span class="name">{{ comment.author_name }}</span>
+                  <span class="name">{{ comment.author_name || comment.name || comment.user_name || 'Unknown User' }}</span>
                   <span v-if="comment.author_role === 'teacher' || comment.author_role === 'admin'" class="badge">Staff</span>
                 </div>
                 <p class="text">{{ comment.content }}</p>
@@ -318,21 +326,193 @@ onMounted(() => {
 .primary-btn:hover:not(:disabled) { background: #4f46e5; }
 .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.comments-list { display: flex; flex-direction: column; gap: 1.5rem; }
-.empty-comments { text-align: center; color: #94a3b8; padding: 3rem 0; }
-.empty-icon { font-size: 3rem; margin-bottom: 0.5rem; opacity: 0.5; }
-.comment-item { display: flex; gap: 1rem; }
-.comment-content { flex-grow: 1; }
-.comment-bubble { background: #f8fafc; padding: 1rem 1.25rem; border-radius: 0 20px 20px 20px; display: inline-block; min-width: 200px; max-width: 100%; border: 1px solid #f1f5f9; }
-.comment-author { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
-.comment-author .name { font-weight: 600; font-size: 0.95rem; color: #0f172a; }
-.comment-author .badge { font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 0.1rem 0.5rem; border-radius: 999px; font-weight: 700; }
-.comment-bubble .text { margin: 0; font-size: 0.95rem; color: #334155; line-height: 1.5; white-space: pre-wrap; }
-.comment-actions { display: flex; align-items: center; gap: 1rem; margin-top: 0.4rem; margin-left: 0.75rem; }
-.comment-actions .time { font-size: 0.8rem; color: #94a3b8; font-weight: 500; }
-.text-btn { background: none; border: none; font-size: 0.8rem; font-weight: 600; color: #94a3b8; cursor: pointer; padding: 0; transition: color 0.2s; }
-.text-btn:hover { color: #ef4444; }
+.comments-section { 
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
 
+.comments-title { 
+  font-size: 1.15rem; 
+  font-weight: 700; 
+  color: #0f172a; 
+  margin-bottom: 1.5rem; 
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* --- Input Area --- */
+.comment-input-area { 
+  display: flex; 
+  gap: 1rem; 
+  margin-bottom: 2.5rem; 
+  align-items: flex-start; /* Keeps avatar at the top if textarea grows */
+}
+
+.input-wrapper { 
+  flex-grow: 1; 
+  background: #ffffff; 
+  border: 1px solid #cbd5e1; 
+  border-radius: 16px; 
+  padding: 0.85rem 1rem; 
+  transition: all 0.2s ease; 
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.input-wrapper:focus-within { 
+  border-color: #6366f1; 
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); 
+}
+
+.input-wrapper textarea { 
+  width: 100%; 
+  border: none; 
+  resize: none; 
+  outline: none; 
+  font-family: inherit; 
+  font-size: 0.95rem; 
+  color: #0f172a; 
+  background: transparent; 
+  padding: 0; 
+  min-height: 44px;
+}
+
+.input-wrapper textarea::placeholder {
+  color: #94a3b8;
+}
+
+.input-actions { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-top: 0.75rem; 
+  padding-top: 0.75rem; 
+  border-top: 1px solid #f1f5f9; 
+}
+
+.hint { 
+  font-size: 0.75rem; 
+  color: #94a3b8; 
+  font-weight: 500;
+}
+
+.primary-btn { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  background: #6366f1; 
+  color: white; 
+  border: none; 
+  padding: 0.5rem 1.25rem; 
+  border-radius: 10px; 
+  font-weight: 600; 
+  cursor: pointer; 
+  transition: all 0.2s; 
+  min-width: 100px; 
+}
+.primary-btn:hover:not(:disabled) { background: #4f46e5; transform: translateY(-1px); }
+.primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* --- Comments List --- */
+.comments-list { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 1.5rem; 
+}
+
+.empty-comments { 
+  text-align: center; 
+  color: #94a3b8; 
+  padding: 3rem 0; 
+  background: #f8fafc;
+  border-radius: 16px;
+  border: 1px dashed #cbd5e1;
+}
+.empty-icon { font-size: 2.5rem; margin-bottom: 0.5rem; color: #cbd5e1; }
+
+.comment-item { 
+  display: flex; 
+  gap: 1rem; 
+  align-items: flex-start;
+}
+
+.comment-content { 
+  flex-grow: 1; 
+}
+
+.comment-bubble { 
+  background: #ffffff; 
+  padding: 0.85rem 1.25rem; 
+  border-radius: 16px; /* Uniform rounding for a cleaner, card-like look */
+  display: inline-block; 
+  min-width: 250px; 
+  max-width: 100%; 
+  border: 1px solid #dcdcdc; 
+  box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+}
+
+.comment-author { 
+  display: flex; 
+  align-items: center; 
+  gap: 0.5rem; 
+  margin-bottom: 0.4rem; 
+}
+
+.comment-author .name { 
+  font-weight: 600; 
+  font-size: 0.9rem; 
+  color: #0f172a; 
+}
+
+.comment-author .badge { 
+  font-size: 0.65rem; 
+  background: #e0e7ff; 
+  color: #4f46e5; 
+  padding: 0.15rem 0.5rem; 
+  border-radius: 999px; 
+  font-weight: 700; 
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.comment-bubble .text { 
+  margin: 0; 
+  font-size: 0.95rem; 
+  color: #334155; 
+  line-height: 1.6; 
+  white-space: pre-wrap; 
+  word-break: break-word;
+}
+
+.comment-actions { 
+  display: flex; 
+  align-items: center; 
+  gap: 1.25rem; 
+  margin-top: 0.4rem; 
+  margin-left: 0.5rem; /* Slight indent to align under the bubble's padding */
+}
+
+.comment-actions .time { 
+  font-size: 0.75rem; 
+  color: #94a3b8; 
+  font-weight: 500; 
+}
+
+.text-btn { 
+  background: none; 
+  border: none; 
+  font-size: 0.75rem; 
+  font-weight: 600; 
+  color: #94a3b8; 
+  cursor: pointer; 
+  padding: 0; 
+  transition: color 0.2s; 
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.text-btn:hover { color: #ef4444; }
 /* =========================================
    NEW: REPORT MODAL STYLES
 ========================================= */

@@ -18,17 +18,53 @@ export interface Club {
   admin_list: ClubAdmin[];
 }
 
+export interface ClubRequest {
+  id: number;
+  title: string;
+  description: string;
+  requester_name: string;
+  created_at: string;
+}
+
 const clubs = ref<Club[]>([]);
 const clubsLoading = ref(false);
 const searchQuery = ref('');
 const statusFilter = ref('all');
 
-// Modal State
+const pendingRequests = ref<ClubRequest[]>([]);
+const isProcessingRequest = ref(false);
+
+// --- MODAL STATES ---
+// 1. Create Modal
 const showCreateModal = ref(false);
 const isCreating = ref(false);
 const createError = ref('');
 const newClubForm = ref({ title: '', description: '' });
 
+// 2. Delete Modal
+const showDeleteModal = ref(false);
+const isDeleting = ref(false);
+const deleteError = ref('');
+const clubToDelete = ref<{ id: number, title: string } | null>(null);
+
+// 3. Suspend Modal
+const showSuspendModal = ref(false);
+const isSuspending = ref(false);
+const suspendError = ref('');
+const clubToSuspend = ref<Club | null>(null);
+
+// 4. Request Modal (Approve & Reject)
+const showRequestModal = ref(false);
+const requestModalMode = ref<'approve' | 'reject' | null>(null);
+const requestError = ref('');
+const selectedRequest = ref<{ id: number, title: string } | null>(null);
+
+// 5. Generic Error Modal (Replaces standard alerts)
+const showErrorModal = ref(false);
+const errorMessage = ref('');
+
+
+// --- DATA FETCHING ---
 const fetchClubData = async () => {
   try {
     clubsLoading.value = true;
@@ -46,6 +82,15 @@ const fetchClubData = async () => {
   }
 };
 
+const fetchPendingRequests = async () => {
+  try {
+    const res = await apiClient.get("/admin/club/club-requests");
+    pendingRequests.value = res.data;
+  } catch (e) {
+    console.error("Error fetching pending requests:", e);
+  }
+};
+
 let searchTimeout: any;
 watch([searchQuery, statusFilter], () => {
   clearTimeout(searchTimeout);
@@ -56,24 +101,28 @@ watch([searchQuery, statusFilter], () => {
 
 onMounted(() => {
   fetchClubData();
+  fetchPendingRequests();
 });
+
 
 // --- ADMIN ACTIONS ---
 
-// 1. Create a brand new club instantly
+const triggerErrorModal = (msg: string) => {
+  errorMessage.value = msg;
+  showErrorModal.value = true;
+};
+
 const handleCreateClub = async () => {
   createError.value = '';
   isCreating.value = true;
   
   try {
-    // Expected endpoint to create an official, pre-approved club
     await apiClient.post('/admin/club', {
       title: newClubForm.value.title,
       description: newClubForm.value.description,
-      status: 'active' // Instantly active because an Admin made it
+      status: 'active'
     });
     
-    // Close modal, reset form, refresh list
     showCreateModal.value = false;
     newClubForm.value = { title: '', description: '' };
     fetchClubData();
@@ -84,48 +133,12 @@ const handleCreateClub = async () => {
   }
 };
 
-// 2. Approve, Suspend, or Restore an existing club
-// const toggleClubStatus = async (club: Club) => {
-//   try {
-//     if (club.status === 'reviewing') {
-//       // APPROVE requested club
-//       await apiClient.put(`/admin/club/${club.id}/approve`);
-//       club.status = 'active';
-//     } 
-//     else if (club.status === 'active') {
-//       // SUSPEND active club
-//       if (confirm(`Suspend "${club.title}"? Members won't be able to post in this club's forums.`)) {
-//         await apiClient.put(`/admin/club/${club.id}/suspend`);
-//         club.status = 'suspended';
-//       }
-//     } 
-//     else {
-//       // RESTORE suspended club
-//       await apiClient.put(`/admin/club/${club.id}/restore`);
-//       club.status = 'active';
-//     }
-//   } catch (e: any) {
-//     console.error("Status toggle failed:", e);
-//     alert(e.response?.data?.error || "Failed to change club status.");
-//   }
-// };
-
-// 3. Delete club forever
-// --- DELETE MODAL STATE ---
-const showDeleteModal = ref(false);
-const isDeleting = ref(false);
-const deleteError = ref('');
-// Store the club info temporarily so the modal knows what to display and delete
-const clubToDelete = ref<{ id: number, title: string } | null>(null);
-
-// 1. Open the modal and set the target club
 const promptDeleteClub = (clubId: number, clubTitle: string) => {
   clubToDelete.value = { id: clubId, title: clubTitle };
   deleteError.value = '';
   showDeleteModal.value = true;
 };
 
-// 2. The actual API call when they click "Yes, Delete" inside the modal
 const confirmDeleteClub = async () => {
   if (!clubToDelete.value) return;
 
@@ -134,27 +147,16 @@ const confirmDeleteClub = async () => {
 
   try {
     await apiClient.delete(`/admin/club/${clubToDelete.value.id}`);
-    
-    // Remove the club from the table array instantly
     clubs.value = clubs.value.filter(c => c.id !== clubToDelete.value!.id);
     
-    // Close and reset the modal
     showDeleteModal.value = false;
     clubToDelete.value = null;
   } catch (e: any) {
-    console.error("Delete failed:", e);
-    // Show the error INSIDE the modal instead of a browser alert
     deleteError.value = e.response?.data?.error || "Failed to delete club.";
   } finally {
     isDeleting.value = false;
   }
 };
-
-// Suspend Modal State
-const showSuspendModal = ref(false);
-const isSuspending = ref(false);
-const suspendError = ref('');
-const clubToSuspend = ref<Club | null>(null);
 
 const toggleClubStatus = async (club: Club) => {
   try {
@@ -162,7 +164,6 @@ const toggleClubStatus = async (club: Club) => {
       await apiClient.put(`/admin/club/${club.id}/approve`);
       club.status = 'active';
     } else if (club.status === 'active') {
-      // Open the custom modal instead of the browser confirm()
       clubToSuspend.value = club;
       suspendError.value = '';
       showSuspendModal.value = true;
@@ -171,7 +172,8 @@ const toggleClubStatus = async (club: Club) => {
       club.status = 'active';
     }
   } catch (e: any) {
-    alert(e.response?.data?.error || "Failed to change club status.");
+    // Replaced alert() with custom error modal
+    triggerErrorModal(e.response?.data?.error || "Failed to change club status.");
   }
 };
 
@@ -183,12 +185,9 @@ const confirmSuspendClub = async () => {
 
   try {
     await apiClient.put(`/admin/club/${clubToSuspend.value.id}/suspend`);
-    
-    // Update the status in the UI
     const target = clubs.value.find(c => c.id === clubToSuspend.value!.id);
     if (target) target.status = 'suspended';
     
-    // Close modal and reset
     showSuspendModal.value = false;
     clubToSuspend.value = null;
   } catch (e: any) {
@@ -198,61 +197,44 @@ const confirmSuspendClub = async () => {
   }
 };
 
-// 1. Add the interface for a request
-export interface ClubRequest {
-  id: number;
-  title: string;
-  description: string;
-  requester_name: string;
-  created_at: string;
-}
+// --- REQUEST MODERATION ACTIONS ---
 
-// 2. Add the state
-const pendingRequests = ref<ClubRequest[]>([]);
-const isProcessingRequest = ref(false);
-
-// 3. Add the fetch function
-const fetchPendingRequests = async () => {
-  try {
-    const res = await apiClient.get("/admin/club/club-requests");
-    pendingRequests.value = res.data;
-  } catch (e) {
-    console.error("Error fetching pending requests:", e);
-  }
+const promptApproveRequest = (requestId: number, title: string) => {
+  selectedRequest.value = { id: requestId, title };
+  requestModalMode.value = 'approve';
+  requestError.value = '';
+  showRequestModal.value = true;
 };
 
-// 4. Update onMounted to fetch requests as well
-onMounted(() => {
-  fetchClubData();
-  fetchPendingRequests(); // <-- Add this
-});
+const promptRejectRequest = (requestId: number, title: string) => {
+  selectedRequest.value = { id: requestId, title };
+  requestModalMode.value = 'reject';
+  requestError.value = '';
+  showRequestModal.value = true;
+};
 
-// 5. Add Moderation actions for requests
-const handleApproveRequest = async (requestId: number, title: string) => {
-  if (!confirm(`Approve "${title}" and create this club?`)) return;
-  
+const confirmRequestAction = async () => {
+  if (!selectedRequest.value || !requestModalMode.value) return;
+
   isProcessingRequest.value = true;
+  requestError.value = '';
+
   try {
-    await apiClient.post(`/admin/club/club-requests/${requestId}/approve`);
-    // Refresh both tables!
+    if (requestModalMode.value === 'approve') {
+      await apiClient.post(`/admin/club/club-requests/${selectedRequest.value.id}/approve`);
+      fetchClubData(); 
+    } else {
+      // Fixed URL typo here (clu -> club)
+      await apiClient.post(`/admin/club/club-requests/${selectedRequest.value.id}/reject`);
+    }
+    
     fetchPendingRequests();
-    fetchClubData(); 
-  } catch (e: any) {
-    alert(e.response?.data?.error || "Failed to approve request.");
-  } finally {
-    isProcessingRequest.value = false;
-  }
-};
+    showRequestModal.value = false;
+    selectedRequest.value = null;
+    requestModalMode.value = null;
 
-const handleRejectRequest = async (requestId: number, title: string) => {
-  if (!confirm(`Reject the request for "${title}"?`)) return;
-  
-  isProcessingRequest.value = true;
-  try {
-    await apiClient.post(`/admin/clu/club-requests/${requestId}/reject`);
-    fetchPendingRequests(); // Remove it from the list
   } catch (e: any) {
-    alert(e.response?.data?.error || "Failed to reject request.");
+    requestError.value = e.response?.data?.error || `Failed to ${requestModalMode.value} request.`;
   } finally {
     isProcessingRequest.value = false;
   }
@@ -264,7 +246,18 @@ const handleRejectRequest = async (requestId: number, title: string) => {
   <div class="club-oversight">
     
     <header class="page-header">
-      <div v-if="pendingRequests.length > 0" class="requests-queue">
+      <div class="title-section">
+        <h1>Club Directory & Oversight</h1>
+        <p>Monitor campus organizations, approve requested clubs, and manage community hubs.</p>
+      </div>
+      
+      <button class="primary-btn" @click="showCreateModal = true">
+        <Icon icon="heroicons:plus-circle" class="btn-icon" />
+        <span>Create Official Club</span>
+      </button>
+    </header>
+
+    <div v-if="pendingRequests.length > 0" class="requests-queue">
         <div class="queue-header">
           <div class="queue-title">
             <Icon icon="heroicons:inbox-arrow-down" class="queue-icon" />
@@ -282,11 +275,11 @@ const handleRejectRequest = async (requestId: number, title: string) => {
             </div>
             
             <div class="req-actions">
-              <button class="btn-reject" @click="handleRejectRequest(req.id, req.title)" :disabled="isProcessingRequest">
+              <button class="btn-reject" @click="promptRejectRequest(req.id, req.title)" :disabled="isProcessingRequest">
                 <Icon icon="heroicons:x-mark" />
                 <span>Reject</span>
               </button>
-              <button class="btn-approve" @click="handleApproveRequest(req.id, req.title)" :disabled="isProcessingRequest">
+              <button class="btn-approve" @click="promptApproveRequest(req.id, req.title)" :disabled="isProcessingRequest">
                 <Icon icon="heroicons:check" />
                 <span>Approve & Create</span>
               </button>
@@ -294,17 +287,6 @@ const handleRejectRequest = async (requestId: number, title: string) => {
           </div>
         </div>
       </div>
-
-      <div class="title-section">
-        <h1>Club Directory & Oversight</h1>
-        <p>Monitor campus organizations, approve requested clubs, and manage community hubs.</p>
-      </div>
-      
-      <button class="primary-btn" @click="showCreateModal = true">
-        <Icon icon="heroicons:plus-circle" class="btn-icon" />
-        <span>Create Official Club</span>
-      </button>
-    </header>
 
     <div class="controls-card">
       <div class="search-wrapper">
@@ -415,37 +397,21 @@ const handleRejectRequest = async (requestId: number, title: string) => {
           <h2>Create Official Club</h2>
           <p>Establish a new, pre-approved community hub.</p>
         </div>
-
         <form @submit.prevent="handleCreateClub" class="modal-form">
           <div class="form-group">
             <label>Club Title *</label>
-            <input 
-              v-model="newClubForm.title" 
-              type="text" 
-              placeholder="e.g. Debate Team" 
-              required 
-            />
+            <input v-model="newClubForm.title" type="text" placeholder="e.g. Debate Team" required />
           </div>
-
           <div class="form-group">
             <label>Description *</label>
-            <textarea 
-              v-model="newClubForm.description" 
-              rows="3" 
-              placeholder="What is this official club about?" 
-              required 
-            ></textarea>
+            <textarea v-model="newClubForm.description" rows="3" placeholder="What is this official club about?" required></textarea>
           </div>
-
           <div v-if="createError" class="alert error">
             <Icon icon="mdi:alert-circle" />
             <span>{{ createError }}</span>
           </div>
-
           <div class="modal-actions">
-            <button type="button" class="btn-cancel" @click="showCreateModal = false" :disabled="isCreating">
-              Cancel
-            </button>
+            <button type="button" class="btn-cancel" @click="showCreateModal = false" :disabled="isCreating">Cancel</button>
             <button type="submit" class="primary-btn flex-fill" :disabled="isCreating">
               <Icon v-if="isCreating" icon="eos-icons:loading" class="spin-icon" />
               <span>{{ isCreating ? 'Creating...' : 'Create Club' }}</span>
@@ -454,73 +420,104 @@ const handleRejectRequest = async (requestId: number, title: string) => {
         </form>
       </div>
     </div>
+
     <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
       <div class="modal-card delete-modal">
-        
         <div class="modal-header text-danger">
           <Icon icon="heroicons:exclamation-triangle" width="36" />
           <h2>Delete Club?</h2>
         </div>
-
         <p class="modal-body">
           Are you absolutely sure you want to delete <strong>"{{ clubToDelete?.title }}"</strong>? 
           This action will cascade and permanently wipe all associated forums, replies, and member data. 
           This <strong>cannot be undone</strong>.
         </p>
-
         <div v-if="deleteError" class="alert error mb-4">
           <Icon icon="mdi:alert-circle" />
           <span>{{ deleteError }}</span>
         </div>
-
         <div class="modal-actions">
-          <button class="btn-cancel" @click="showDeleteModal = false" :disabled="isDeleting">
-            Cancel
-          </button>
+          <button class="btn-cancel" @click="showDeleteModal = false" :disabled="isDeleting">Cancel</button>
           <button class="btn-danger flex-fill" @click="confirmDeleteClub" :disabled="isDeleting">
             <Icon v-if="isDeleting" icon="eos-icons:loading" class="spin-icon" />
             <span>{{ isDeleting ? 'Deleting...' : 'Yes, Delete Club' }}</span>
           </button>
         </div>
-
       </div>
     </div>
 
     <div v-if="showSuspendModal" class="modal-overlay" @click.self="showSuspendModal = false">
       <div class="modal-card warning-modal">
-        
         <div class="modal-header text-warning">
           <Icon icon="heroicons:pause-circle" width="36" />
           <h2>Suspend Club?</h2>
         </div>
-
         <p class="modal-body">
           Are you sure you want to suspend <strong>"{{ clubToSuspend?.title }}"</strong>? 
           Members will no longer be able to post in this club's forums or interact with its events until it is restored.
         </p>
-
         <div v-if="suspendError" class="alert error mb-4">
           <Icon icon="mdi:alert-circle" />
           <span>{{ suspendError }}</span>
         </div>
-
         <div class="modal-actions">
-          <button class="btn-cancel" @click="showSuspendModal = false" :disabled="isSuspending">
-            Cancel
-          </button>
+          <button class="btn-cancel" @click="showSuspendModal = false" :disabled="isSuspending">Cancel</button>
           <button class="btn-warning flex-fill" @click="confirmSuspendClub" :disabled="isSuspending">
             <Icon v-if="isSuspending" icon="eos-icons:loading" class="spin-icon" />
             <span>{{ isSuspending ? 'Suspending...' : 'Yes, Suspend Club' }}</span>
           </button>
         </div>
-
       </div>
     </div>
+
+    <div v-if="showRequestModal" class="modal-overlay" @click.self="showRequestModal = false">
+      <div class="modal-card">
+        <div class="modal-header" :class="requestModalMode === 'reject' ? 'text-danger' : 'text-success'">
+          <Icon :icon="requestModalMode === 'reject' ? 'heroicons:x-circle' : 'heroicons:check-circle'" width="36" />
+          <h2>{{ requestModalMode === 'reject' ? 'Reject Request?' : 'Approve Request?' }}</h2>
+        </div>
+        <p class="modal-body">
+          Are you sure you want to {{ requestModalMode }} the request for <strong>"{{ selectedRequest?.title }}"</strong>?
+          <template v-if="requestModalMode === 'approve'"><br/>This will immediately create the official club and notify the requester.</template>
+        </p>
+        <div v-if="requestError" class="alert error mb-4">
+          <Icon icon="mdi:alert-circle" />
+          <span>{{ requestError }}</span>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="showRequestModal = false" :disabled="isProcessingRequest">Cancel</button>
+          <button 
+            :class="['flex-fill', requestModalMode === 'reject' ? 'btn-danger' : 'btn-approve-modal']" 
+            @click="confirmRequestAction" 
+            :disabled="isProcessingRequest"
+          >
+            <Icon v-if="isProcessingRequest" icon="eos-icons:loading" class="spin-icon" />
+            <span>{{ isProcessingRequest ? 'Processing...' : (requestModalMode === 'reject' ? 'Yes, Reject' : 'Yes, Approve') }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showErrorModal" class="modal-overlay" @click.self="showErrorModal = false">
+      <div class="modal-card">
+        <div class="modal-header text-danger">
+          <Icon icon="heroicons:exclamation-circle" width="36" />
+          <h2>Action Failed</h2>
+        </div>
+        <p class="modal-body">
+          {{ errorMessage }}
+        </p>
+        <div class="modal-actions">
+          <button class="btn-cancel flex-fill" @click="showErrorModal = false">Close</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <style scoped>
-/* Keeping your existing table and dashboard CSS */
+/* Keeping your existing styles */
 .club-oversight { max-width: 1200px; margin: 0 auto; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
 .title-section h1 { font-size: 2rem; color: #0f172a; margin: 0 0 0.5rem 0; }
@@ -593,9 +590,7 @@ const handleRejectRequest = async (requestId: number, title: string) => {
 .empty-state { text-align: center; padding: 4rem 2rem !important; color: #94a3b8; }
 .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
 
-/* =========================================
-   MODAL STYLES (MATCHES PREVIOUS MODALS)
-========================================= */
+/* Modal Base Styles */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; }
 .modal-card { background: white; width: 90%; max-width: 500px; border-radius: 24px; padding: 2.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); animation: modal-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
 .modal-header { margin-bottom: 2rem; text-align: center; }
@@ -617,214 +612,53 @@ const handleRejectRequest = async (requestId: number, title: string) => {
 .alert { display: flex; align-items: center; gap: 0.5rem; padding: 0.85rem 1rem; border-radius: 12px; font-size: 0.9rem; font-weight: 500; }
 .alert.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
-/* =========================================
-   PENDING REQUESTS QUEUE
-========================================= */
-.requests-queue {
-  background: #fffbeb; /* Soft yellow warning background */
-  border: 1px solid #fde68a;
-  border-radius: 20px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.05);
-}
+/* Requests Queue Styles */
+.requests-queue { background: #fffbeb; border: 1px solid #fde68a; border-radius: 20px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.05); }
+.queue-header { margin-bottom: 1.25rem; }
+.queue-title { display: flex; align-items: center; gap: 0.75rem; color: #b45309; }
+.queue-icon { font-size: 1.5rem; }
+.queue-title h2 { font-size: 1.25rem; margin: 0; font-weight: 700; }
+.request-count { background: #f59e0b; color: white; padding: 0.15rem 0.6rem; border-radius: 99px; font-size: 0.85rem; font-weight: 700; }
+.requests-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 860px) { .requests-grid { grid-template-columns: repeat(2, 1fr); } }
 
-.queue-header {
-  margin-bottom: 1.25rem;
-}
+.request-card { background: white; border: 1px solid #fde68a; border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem; }
+.req-content h3 { margin: 0 0 0.5rem 0; color: #0f172a; font-size: 1.1rem; }
+.req-content p { margin: 0 0 1rem 0; color: #475569; font-size: 0.9rem; line-height: 1.5; }
+.req-meta { font-size: 0.8rem; color: #94a3b8; }
+.req-meta strong { color: #475569; }
 
-.queue-title {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: #b45309;
-}
+.req-actions { display: flex; gap: 0.5rem; margin-top: auto; }
+.req-actions button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.6rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
 
-.queue-icon {
-  font-size: 1.5rem;
-}
+.btn-reject { background: white; color: #dc2626; border: 1px solid #fecaca; }
+.btn-reject:hover:not(:disabled) { background: #fef2f2; }
+.btn-approve { background: #10b981; color: white; border: none; }
+.btn-approve:hover:not(:disabled) { background: #059669; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
 
-.queue-title h2 {
-  font-size: 1.25rem;
-  margin: 0;
-  font-weight: 700;
-}
+/* Custom Modal State Styles */
+.text-danger { color: #dc2626 !important; }
+.modal-header.text-danger h2 { color: #dc2626; }
+.btn-danger { display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: #dc2626; color: white; border: none; padding: 0.85rem 1.25rem; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-danger:hover:not(:disabled) { background: #b91c1c; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
+.btn-danger:disabled { opacity: 0.7; cursor: not-allowed; }
 
-.request-count {
-  background: #f59e0b;
-  color: white;
-  padding: 0.15rem 0.6rem;
-  border-radius: 99px;
-  font-size: 0.85rem;
-  font-weight: 700;
-}
+.text-warning { color: #d97706 !important; }
+.modal-header.text-warning h2 { color: #d97706; }
+.btn-warning { display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: #f59e0b; color: white; border: none; padding: 0.85rem 1.25rem; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-warning:hover:not(:disabled) { background: #d97706; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); }
+.btn-warning:disabled { opacity: 0.7; cursor: not-allowed; }
 
-.requests-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
+.text-success { color: #10b981 !important; }
+.modal-header.text-success h2 { color: #10b981; }
+.btn-approve-modal { display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: #10b981; color: white; border: none; padding: 0.85rem 1.25rem; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-approve-modal:hover:not(:disabled) { background: #059669; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+.btn-approve-modal:disabled { opacity: 0.7; cursor: not-allowed; }
 
-@media (min-width: 860px) {
-  .requests-grid { grid-template-columns: repeat(2, 1fr); }
-}
+.modal-body { text-align: center; color: #475569; line-height: 1.6; margin-bottom: 1.5rem; }
+.modal-body strong { color: #0f172a; }
+.mb-4 { margin-bottom: 1rem; }
 
-.request-card {
-  background: white;
-  border: 1px solid #fde68a;
-  border-radius: 16px;
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.req-content h3 {
-  margin: 0 0 0.5rem 0;
-  color: #0f172a;
-  font-size: 1.1rem;
-}
-
-.req-content p {
-  margin: 0 0 1rem 0;
-  color: #475569;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.req-meta {
-  font-size: 0.8rem;
-  color: #94a3b8;
-}
-
-.req-meta strong {
-  color: #475569;
-}
-
-.req-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: auto;
-}
-
-.req-actions button {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.6rem;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-reject {
-  background: white;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-}
-.btn-reject:hover:not(:disabled) {
-  background: #fef2f2;
-}
-
-.btn-approve {
-  background: #10b981;
-  color: white;
-  border: none;
-}
-.btn-approve:hover:not(:disabled) {
-  background: #059669;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-}
-/* Delete Modal Specific Styles */
-.text-danger {
-  color: #dc2626 !important;
-}
-
-.modal-header.text-danger h2 {
-  color: #dc2626;
-}
-
-.modal-body {
-  text-align: center;
-  color: #475569;
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-}
-
-.modal-body strong {
-  color: #0f172a;
-}
-
-.mb-4 {
-  margin-bottom: 1rem;
-}
-
-.btn-danger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background: #dc2626;
-  color: white;
-  border: none;
-  padding: 0.85rem 1.25rem;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
-}
-
-.btn-danger:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-/* Suspend Modal Specific Styles */
-.text-warning {
-  color: #d97706 !important;
-}
-
-.modal-header.text-warning h2 {
-  color: #d97706;
-}
-
-.btn-warning {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background: #f59e0b;
-  color: white;
-  border: none;
-  padding: 0.85rem 1.25rem;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-warning:hover:not(:disabled) {
-  background: #d97706;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
-}
-
-.btn-warning:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
 .spin-icon { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 @keyframes modal-pop { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }

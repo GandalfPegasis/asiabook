@@ -330,7 +330,6 @@ router.post("/request-new", authMiddleware, async (req, res) => {
             error: "Internal server error while submitting request.",
         });
     }
-    res.json({ success: true });
 });
 
 module.exports = router;

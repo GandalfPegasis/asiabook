@@ -1,4 +1,6 @@
 const router = require("express").Router();
+const multer = require("multer");
+const path = require("path");
 
 const { getPostByProfileId } = require("../dataaccess/postDAO");
 const {
@@ -12,10 +14,34 @@ const {
     getRequestCount,
 } = require("../dataaccess/friendDAO");
 const { authMiddleware } = require("../middleware/authMiddleware");
-const { getProfile } = require("../controllers/profile");
-// Apply auth middleware to all profile routes
 
-router.put("/", async (req, res) => {
+// --- MULTER CONFIGURATION FOR AVATARS ---
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        // Ensure this folder exists: 'uploads/avatars/'
+        cb(null, "uploads/avatars/");
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, "avatar-" + uniqueSuffix + path.extname(file.originalname));
+    },
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max limit
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith("image/")) {
+            cb(null, true);
+        } else {
+            cb(new Error("Only images are allowed"));
+        }
+    },
+});
+
+// PUT /profile - Update profile details and avatar
+// NEW: Added upload.single("avatar") middleware here
+router.put("/", authMiddleware, upload.single("avatar"), async (req, res) => {
     const userId = req.user.id;
 
     const {
@@ -26,21 +52,25 @@ router.put("/", async (req, res) => {
         role,
         department,
         language,
-        contact_info,
+        contact_number,
     } = balls(req.body);
 
     if (!name || !email) {
         return res.status(400).json({ error: "Name and email are required" });
     }
 
-    if (contact_info && !validatePhoneNumber(contact_info)) {
+    if (contact_number && !validatePhoneNumber(contact_number)) {
         return res.status(400).json({
             error: "Invalid contact number format. Use 7 to 15 digits (spaces, dashes, () and + allowed).",
         });
     }
 
+    // Capture the avatar path if the user uploaded a new image
+    const avatarUrl = req.file ? `/uploads/avatars/${req.file.filename}` : null;
+
     try {
-        const result = await updateProfile(userId, {
+        // Build the payload to send to your DAO
+        const updatePayload = {
             name,
             email,
             birth_date,
@@ -48,10 +78,21 @@ router.put("/", async (req, res) => {
             role,
             department,
             language,
-            contact_info,
-        });
+            contact_number,
+        };
 
-        res.json(result);
+        // Only attach the avatar to the payload if a new one was uploaded
+        if (avatarUrl) {
+            updatePayload.avatar = avatarUrl;
+        }
+
+        // Pass the payload to your DAO
+        const result = await updateProfile(userId, updatePayload);
+
+        res.json({
+            ...result,
+            avatar: avatarUrl, // Send the new URL back to the frontend to update instantly
+        });
     } catch (err) {
         console.error("Database query error:", err);
         res.status(500).send("<h1>Internal Server Error</h1>");
@@ -76,40 +117,8 @@ router.get("/friends", authMiddleware, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-// NEW: Get profile by ID
-// router.get("/:id", async (req, res) => {
-//     const PROFILE_ID = parseInt(req.params.id);
 
-//     if (isNaN(PROFILE_ID)) {
-//         return res.status(400).json({ error: "Invalid profile ID" });
-//     }
-
-//     try {
-//         const [profileResults] = await getProfileById(PROFILE_ID);
-
-//         if (profileResults.length === 0) {
-//             return res.status(404).json({ error: "Profile not found" });
-//         }
-
-//         const postResults = await getPostByProfileId(PROFILE_ID);
-
-//         const user = profileResults[0];
-
-//         const data = {
-//             ...user,
-//             posts: postResults,
-//         };
-
-//         console.log(data);
-
-//         res.json(data);
-//     } catch (err) {
-//         console.error("Database query error:", err);
-//         res.status(500).send("<h1>Internal Server Error</h1>");
-//     }
-// });
-
-// NEW: Get friends by profile ID
+// GET /profile/:id/friends
 router.get("/:id/friends", async (req, res) => {
     const PROFILE_ID = parseInt(req.params.id);
 
@@ -132,40 +141,32 @@ router.get("/:id/friends", async (req, res) => {
     }
 });
 
+// GET /profile
+// Note: Changed /:id to /:id(\\d+) so it doesn't accidentally catch the word "friends" as an ID!
 router.get(["/", "/:id"], authMiddleware, async (req, res) => {
     try {
-        // If an ID is in the URL, use it. Otherwise, use the logged-in user's ID.
         const targetUserId = req.params.id
             ? parseInt(req.params.id, 10)
             : req.user.id;
 
-        // console.log("UserId", targetUserId);
-
-        // 1. Fetch base user info (name, email, department, language, etc.)
         const userProfile = await getProfileById(targetUserId);
-
-        // console.log(userProfile);
 
         if (!userProfile) {
             return res.status(404).json({ error: "User not found" });
         }
 
-        // 2. Fetch all their related data in parallel for speed!
         const [posts, clubs, forum_posts] = await Promise.all([
-            getPostByProfileId(targetUserId), // Your existing feed posts function
-            getUserClubs(targetUserId), // NEW: Joined clubs
-            getUserForumActivity(targetUserId), // NEW: Forum activity
+            getPostByProfileId(targetUserId),
+            getUserClubs(targetUserId),
+            getUserForumActivity(targetUserId),
         ]);
 
-        // 3. Assemble the final object matching your Vue frontend interface
         const finalUserData = {
             ...userProfile[0],
             posts: posts || [],
             clubs: clubs || [],
             forum_posts: forum_posts || [],
         };
-
-        console.log(finalUserData);
 
         res.json(finalUserData);
     } catch (error) {
@@ -193,7 +194,7 @@ const balls = (data) => {
     if (!data.role) data.role = null;
     if (!data.department) data.department = null;
     if (!data.language) data.language = null;
-    if (!data.contact_info) data.contact_info = null;
+    if (!data.contact_number) data.contact_number = null;
 
     return data;
 };

@@ -81,7 +81,7 @@ wss.on("connection", (ws, req) => {
 
 // Routes & Middleware
 app.use(require("./src/routes"));
-app.use("/admin", authMiddleware, isAdmin, require("./src/routes/admin"));
+app.use("/admin", require("./src/routes/admin"));
 
 app.all("/{*any}", (req, res, next) => {
     const err = new Error(`Route not found!`);

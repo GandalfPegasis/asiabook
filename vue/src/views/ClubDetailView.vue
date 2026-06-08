@@ -377,7 +377,8 @@ onMounted(() => {
                 class="member-avatar"
                 @click="gotoProfile(member.profile_id)"
               >
-                {{ member.profile_name ? member.profile_name.charAt(0) : '?' }}
+                <img v-if="member.avatar" :src="`http://localhost:3000${member.avatar}`" alt="Avatar" class="avatar-img" />
+                <span v-else>{{ member.profile_name?.charAt(0).toUpperCase() || 'U' }}</span>
               </div>
               <div class="member-info">
                 <div

@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosError } from 'axios';
-import router from '@/router'; // <-- ADDED: Import your Vue Router
+import router from '@/router';
 import { useAuth } from '@/composables/useAuth'; // <-- ADDED: Import your Auth composable
 
 // ==========================================

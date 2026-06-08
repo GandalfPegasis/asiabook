@@ -2,8 +2,13 @@
 import { ref, onBeforeUnmount } from 'vue';
 import { Icon } from '@iconify/vue';
 import { apiClient } from '../api/api'; 
+// 1. IMPORT USEAUTH TO GET THE LOGGED-IN USER
+import { useAuth } from '@/composables/useAuth';
 
 const emit = defineEmits(['post-created']);
+
+// 2. GET THE USER DATA
+const { user } = useAuth();
 
 // State for the composition area
 const newPostContent = ref('');
@@ -100,7 +105,12 @@ onBeforeUnmount(() => {
 <template>
   <div class="create-post-card">
     <div class="compose-header">
-      <div class="author-avatar compose-avatar">Y</div>
+      
+      <div class="author-avatar compose-avatar">
+        <img v-if="user?.avatar" :src="`http://localhost:3000${user.avatar}`" alt="My Avatar" class="avatar-img" />
+        <span v-else>{{ user?.name?.charAt(0).toUpperCase() || 'U' }}</span>
+      </div>
+
       <textarea 
         v-model="newPostContent" 
         placeholder="What do you want to share?" 
@@ -109,7 +119,6 @@ onBeforeUnmount(() => {
       ></textarea>
     </div>
 
-    <!-- Media Preview Section -->
     <div v-if="mediaFiles.length > 0" class="media-preview-container">
       <div v-for="(media, index) in mediaFiles" :key="index" class="media-preview-item">
         <img v-if="media.type === 'image'" :src="media.url" alt="Preview" />
@@ -186,6 +195,15 @@ onBeforeUnmount(() => {
   font-size: 1rem;
   font-weight: 700;
   flex-shrink: 0;
+  overflow: hidden; /* Ensures the image doesn't break the circle */
+}
+
+/* 4. NEW: Avatar Image CSS */
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .compose-avatar {

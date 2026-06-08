@@ -8,7 +8,7 @@ const db = require("../../database");
 router.delete("/:id", async (req, res) => {
     const replyId = req.params.id;
     try {
-        await db.query(`DELETE FROM forum_replies WHERE id = ?`, [replyId]);
+        await db.query(`DELETE FROM forum_reply WHERE id = ?`, [replyId]);
         res.json({ success: true, message: "Reply deleted." });
     } catch (error) {
         console.error("Failed to delete reply:", error);

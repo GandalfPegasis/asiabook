@@ -18,7 +18,7 @@ const getFlaggedPosts = async (offset, LIMIT) => {
     const [data] = await db.query(
         `
         SELECT 
-            p.id, p.caption, p.status, p.created_at,
+            p.id, p.caption, p.status, p.created_at, u.avatar AS author_avatar,
             u.name AS author_name, u.email AS author_email,
             COUNT(r.id) AS report_count,
             IF(COUNT(r.id) > 0, JSON_ARRAYAGG(JSON_OBJECT('id', r.id, 'reason', r.reason)), JSON_ARRAY()) AS reports
