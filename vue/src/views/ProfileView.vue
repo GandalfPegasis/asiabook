@@ -86,7 +86,11 @@
           <div class="friends-section card-box">
             <div class="friends-header">
               <h2>Friends</h2>
-              <RouterLink v-if="friends.requestCount > 0" class="request-link" :to="{ name: 'friends' }">
+              <RouterLink 
+                  v-if="friends.requestCount > 0 && !route.params.id" 
+                  class="request-link" 
+                  :to="{ name: 'friends' }"
+                >
                 {{ friends.requestCount }} requests
               </RouterLink>
             </div>
