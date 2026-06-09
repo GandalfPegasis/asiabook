@@ -206,7 +206,19 @@ const isVideo = (url: string) => {
 .post-card { background: white; border-radius: 24px; border: 1px solid #e2e8f0; box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04); padding: 1.5rem; transition: transform 0.2s ease, box-shadow 0.2s ease; }
 .post-card:hover { box-shadow: 0 20px 32px rgba(15, 23, 42, 0.06); }
 .post-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
-.author-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; display: grid; place-items: center; font-size: 1rem; font-weight: 700; flex-shrink: 0; }
+.author-avatar { 
+   width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
 .author-meta { display: flex; flex-direction: column; gap: 0.25rem; }
 .author-name-row { display: flex; align-items: center; gap: 0.5rem; }
 .author-name { font-weight: 600; font-size: 1.05rem; color: #0f172a; }

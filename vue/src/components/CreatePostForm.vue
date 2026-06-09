@@ -178,33 +178,34 @@ onBeforeUnmount(() => {
 }
 
 /* Compose Header */
-.compose-header {
+/* .compose-header {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
   margin-bottom: 1rem;
-}
+} */
 
 .author-avatar {
   width: 44px;
   height: 44px;
   border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
-  display: grid;
-  place-items: center;
-  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
   font-weight: 700;
   flex-shrink: 0;
-  overflow: hidden; /* Ensures the image doesn't break the circle */
 }
 
 /* 4. NEW: Avatar Image CSS */
-.avatar-img {
+/* .avatar-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
-}
+} */
 
 .compose-avatar {
   background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%);
