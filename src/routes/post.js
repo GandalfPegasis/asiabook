@@ -113,6 +113,8 @@ router.post(
         // The middleware automatically attaches this (either 'active' or 'reviewing')
         const status = req.body.status || "active";
 
+        console.log(caption);
+        console.log(posted_by);
         try {
             const mediaPaths = req.files
                 ? req.files.map((file) => `/uploads/${file.filename}`)

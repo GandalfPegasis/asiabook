@@ -164,6 +164,8 @@ router.post("/login", async (req, res) => {
 
         const token = generateToken(user.id, user.email);
 
+        console.log(token);
+
         const isAdmin = await isUserAdmin(user.id);
 
         res.json({

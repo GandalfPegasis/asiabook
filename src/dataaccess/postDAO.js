@@ -71,7 +71,7 @@ const getPosts = async (limit, offset, userId) => {
                     prof.name AS author_name,
                     p.likes,
                     prof.avatar AS author_avatar,
-                    
+                    role,
                     COALESCE(
                         (SELECT JSON_ARRAYAGG(pp.location) 
                         FROM post_picture pp 
@@ -99,6 +99,7 @@ const getPosts = async (limit, offset, userId) => {
                     prof.id AS author_id,
                     prof.name AS author_name,
                     p.likes,
+                    role,
                     prof.avatar AS author_avatar,
                     GROUP_CONCAT(DISTINCT pp.location SEPARATOR ',') AS images,
                     COUNT(DISTINCT cp.id) AS comment_count,

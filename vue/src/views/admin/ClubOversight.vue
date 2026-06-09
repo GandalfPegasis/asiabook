@@ -172,7 +172,6 @@ const toggleClubStatus = async (club: Club) => {
       club.status = 'active';
     }
   } catch (e: any) {
-    // Replaced alert() with custom error modal
     triggerErrorModal(e.response?.data?.error || "Failed to change club status.");
   }
 };

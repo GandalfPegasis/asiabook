@@ -243,29 +243,34 @@ onMounted(() => {
             {{ searchError }}
           </div>
 
-          <div v-if="searchResults.length > 0" class="search-results">
+          <div v-if="searchResults.length > 0" class="search-results-grid">
             <div
               v-for="user in searchResults"
               :key="user.id"
-              class="search-result-item"
+              class="search-result-card"
             >
-              <div class="user-avatar">
-                <div class="avatar-placeholder">{{ user.name.charAt(0).toUpperCase() }}</div>
+              <div class="search-card-top">
+                <div class="user-avatar">
+                  <div class="avatar-placeholder">{{ user.name.charAt(0).toUpperCase() }}</div>
+                </div>
+                <div class="user-info">
+                  <div class="user-name">{{ user.name }}</div>
+                  <div class="user-email" :title="user.email">{{ user.email }}</div>
+                </div>
               </div>
-              <div class="user-info">
-                <div class="user-name">{{ user.name }}</div>
-                <div class="user-email">{{ user.email }}</div>
-              </div>
-              <div class="search-actions">
-                <button @click="sendMessage(user.id, user.name)" class="btn-message-small">
-                  <Icon icon="mdi:message" />
-                </button>
-                <button @click="viewProfile(user.id)" class="btn-profile-small">
-                  <Icon icon="mdi:account" />
-                </button>
-                <button @click="sendFriendRequest(user.id)" class="btn-add">
+              
+              <div class="search-card-actions">
+                <div class="secondary-actions">
+                  <button @click="sendMessage(user.id, user.name)" class="action-icon-btn" title="Message">
+                    <Icon icon="mdi:message-outline" />
+                  </button>
+                  <button @click="viewProfile(user.id)" class="action-icon-btn" title="View Profile">
+                    <Icon icon="mdi:account-outline" />
+                  </button>
+                </div>
+                <button @click="sendFriendRequest(user.id)" class="btn-add-full">
                   <Icon icon="mdi:account-plus" />
-                  <span>Add</span>
+                  <span>Add Friend</span>
                 </button>
               </div>
             </div>
@@ -632,27 +637,97 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-.search-results {
-  max-height: 400px;
+/* ===== New Search Results Layout ===== */
+.search-results-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  max-height: 450px;
   overflow-y: auto;
+  background: var(--secondary-color);
   border-top: 1px solid var(--border-color);
 }
 
-.search-result-item {
+.search-result-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.search-result-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+}
+
+.search-card-top {
   display: flex;
   align-items: center;
   gap: 0.875rem;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  transition: background-color 0.2s ease;
+  margin-bottom: 1rem;
 }
 
-.search-result-item:last-child {
-  border-bottom: none;
+.search-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 0.75rem;
 }
 
-.search-result-item:hover {
-  background-color: var(--secondary-color);
+.secondary-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.action-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--secondary-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.1rem;
+}
+
+.action-icon-btn:hover {
+  background: white;
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-add-full {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-add-full:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .search-actions {

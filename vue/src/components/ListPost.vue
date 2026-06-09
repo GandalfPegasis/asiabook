@@ -207,7 +207,7 @@ const isVideo = (url: string) => {
 .post-card:hover { box-shadow: 0 20px 32px rgba(15, 23, 42, 0.06); }
 .post-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 .author-avatar { 
-   width: 44px;
+  width: 44px;
   height: 44px;
   border-radius: 50%;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
@@ -215,7 +215,6 @@ const isVideo = (url: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
   font-weight: 700;
   flex-shrink: 0;
 }

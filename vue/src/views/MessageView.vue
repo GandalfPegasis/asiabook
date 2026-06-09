@@ -533,11 +533,11 @@ onUnmounted(() => {
   height: 44px;
   border-radius: 50%;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  display: grid;
-  place-items: center;
   color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
-  font-size: 1rem;
   flex-shrink: 0;
 }
 

@@ -106,7 +106,7 @@ onBeforeUnmount(() => {
   <div class="create-post-card">
     <div class="compose-header">
       
-      <div class="author-avatar compose-avatar">
+      <div class="author-avatar">
         <img v-if="user?.avatar" :src="`http://localhost:3000${user.avatar}`" alt="My Avatar" class="avatar-img" />
         <span v-else>{{ user?.name?.charAt(0).toUpperCase() || 'U' }}</span>
       </div>
@@ -178,12 +178,12 @@ onBeforeUnmount(() => {
 }
 
 /* Compose Header */
-/* .compose-header {
+.compose-header {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
   margin-bottom: 1rem;
-} */
+}
 
 .author-avatar {
   width: 44px;
@@ -194,18 +194,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
   font-weight: 700;
   flex-shrink: 0;
 }
-
-/* 4. NEW: Avatar Image CSS */
-/* .avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-} */
 
 .compose-avatar {
   background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%);
